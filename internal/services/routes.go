@@ -16,9 +16,11 @@ func ServicesRouter(r chi.Router, db *gorm.DB) {
 	// Inicializar srv Handler
 	srv_handler := NewServiceHandler(srv_service)
 
-	r.Route("/service", func(r chi.Router) {
+	r.Route("/services", func(r chi.Router) {
 		r.Post("/new", srv_handler.CreateService)
-		r.Get("/all", srv_handler.GetAllServices)
+		r.Get("/all/{limit}/{offset}", srv_handler.GetAllServices)
+		r.Put("/update/{id}", srv_handler.UpdateServices)
+		r.HandleFunc("/notification-update", HandleConnection)
 	})
 
 }

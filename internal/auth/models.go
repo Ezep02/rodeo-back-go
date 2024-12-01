@@ -10,6 +10,7 @@ type User struct {
 	Email        string `gorm:"type:varchar(255);not null;unique" json:"email"`
 	Phone_number string `gorm:"type:varchar(30)" json:"phone_number"`
 	Is_admin     bool   `gorm:"default:false" json:"is_admin"`
+	Is_barber    bool   `gorm:"default:false" json:"is_barber"`
 }
 
 type LogUserReq struct {

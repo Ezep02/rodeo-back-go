@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"log"
 
 	"gorm.io/gorm"
 )
@@ -16,7 +17,7 @@ func NewServiceRepository(DATABASE *gorm.DB) *ServiceRepository {
 	}
 }
 
-func (r *ServiceRepository) CreateService(ctx context.Context, service *Service) (*Service, error) {
+func (r *ServiceRepository) CreateNewService(ctx context.Context, service *Service) (*Service, error) {
 
 	result := r.Connection.WithContext(ctx).Create(service)
 
@@ -34,26 +35,55 @@ func (r *ServiceRepository) CreateService(ctx context.Context, service *Service)
 	}, nil
 }
 
-func (r *ServiceRepository) GetAllServices(ctx context.Context) ([]*Service, error) {
+func (r *ServiceRepository) GetAllServices(ctx context.Context, limit int, offset int) (*[]Service, error) {
 	var services []Service
-	result := r.Connection.WithContext(ctx).Find(&services)
+
+	result := r.Connection.WithContext(ctx).Limit(limit).Offset(offset).Order("created_at DESC").Find(&services)
 
 	if result.Error != nil {
 		return nil, result.Error
 	}
 
-	servicePtrs := make([]*Service, len(services))
-
-	// se recorre la respuesta y se cargan a servicesPtrs como punteros
-	for i := range services {
-		servicePtrs[i] = &services[i]
-	}
-
-	return servicePtrs, nil
+	return &services, nil
 }
 
-func (r *ServiceRepository) UpdateService() {
+func (r *ServiceRepository) UpdateServiceByID(ctx context.Context, service *Service, id string) (*Service, error) {
+	// Iniciar transacción
+	tx := r.Connection.WithContext(ctx).Begin()
 
+	if tx.Error != nil {
+		log.Println("[UPDATE SHIFT] Error al iniciar la transacción")
+		return nil, tx.Error
+	}
+
+	log.Println("service:", service)
+
+	// Construir los datos a actualizar
+	updatedService := &Service{
+		Model:            service.Model,
+		Created_by_id:    service.Created_by_id,
+		Title:            service.Title,
+		Price:            service.Price,
+		Description:      service.Description,
+		Service_Duration: service.Service_Duration,
+	}
+
+	// Ejecutar la actualización
+	result := tx.Model(&Service{}).Where("id = ?", id).Updates(updatedService)
+
+	if result.Error != nil {
+		log.Println("[UPDATE SHIFT] Error al actualizar registro, realizando rollback:", result.Error)
+		tx.Rollback()
+		return nil, result.Error
+	}
+
+	// Confirmar la transacción
+	if err := tx.Commit().Error; err != nil {
+		log.Println("[UPDATE SHIFT] Error al confirmar la transacción:", err)
+		return nil, err
+	}
+
+	return updatedService, nil
 }
 
 func (r *ServiceRepository) DeleteServiceByID() {

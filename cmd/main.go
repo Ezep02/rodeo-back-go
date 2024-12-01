@@ -7,6 +7,7 @@ import (
 
 	"github.com/ezep02/rodeo/internal/auth"
 	"github.com/ezep02/rodeo/internal/orders"
+	"github.com/ezep02/rodeo/internal/schedules"
 	"github.com/ezep02/rodeo/internal/services"
 	"github.com/ezep02/rodeo/pkg/db"
 	"github.com/go-chi/chi/v5"
@@ -39,7 +40,7 @@ func main() {
 	auth.RegisterAuthRoutes(r, cnn)
 	services.ServicesRouter(r, cnn)
 	orders.OrderRoutes(r, cnn)
-
+	schedules.SchedulesRoutes(r, cnn)
 	//Crear y configurar el servidor HTTP
 	srv := &http.Server{
 		Handler:      r,

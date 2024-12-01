@@ -52,5 +52,6 @@ func (r *AuthRepository) LoginUser(ctx context.Context, user *LogUserReq) (*User
 		Email:        loggedUser.Email,
 		Phone_number: loggedUser.Phone_number,
 		Is_admin:     loggedUser.Is_admin,
+		Is_barber:    loggedUser.Is_barber,
 	}, nil
 }

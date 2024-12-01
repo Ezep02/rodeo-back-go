@@ -67,7 +67,7 @@ func (h *AuthHandler) RegisterUserHandler(rw http.ResponseWriter, r *http.Reques
 	}
 
 	// si el registro fue exitoso, se crea un token
-	tokenString, err := jwt.GenerateToken(user.ID, user.Is_admin, user.Name, user.Email, user.Surname, user.Phone_number)
+	tokenString, err := jwt.GenerateToken(user.ID, user.Is_admin, user.Name, user.Email, user.Surname, user.Phone_number, user.Is_barber)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -119,7 +119,7 @@ func (h *AuthHandler) LoginUserHandler(rw http.ResponseWriter, r *http.Request) 
 	}
 
 	// si el registro fue exitoso, se crea un token
-	tokenString, err := jwt.GenerateToken(loggedUser.ID, loggedUser.Is_admin, loggedUser.Name, loggedUser.Email, loggedUser.Surname, loggedUser.Phone_number)
+	tokenString, err := jwt.GenerateToken(loggedUser.ID, loggedUser.Is_admin, loggedUser.Name, loggedUser.Email, loggedUser.Surname, loggedUser.Phone_number, loggedUser.Is_barber)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return

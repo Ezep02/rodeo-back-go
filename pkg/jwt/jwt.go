@@ -14,21 +14,23 @@ type JWTClaim struct {
 	IsAdmin      bool   `json:"is_admin"`
 	Surname      string `json:"surname"`
 	Phone_number string `json:"phone_number"`
+	Is_barber    bool   `json:"is_barber"`
 	jwt.StandardClaims
 }
 
 type VerifyTokenRes struct {
-	ID           int    `json:"ID"`
+	ID           uint   `json:"ID"`
 	Name         string `json:"name"`
 	Email        string `json:"email"`
 	Is_admin     bool   `json:"is_admin"`
 	Surname      string `json:"surname"`
 	Phone_number string `json:"phone_number"`
+	Is_barber    bool   `json:"is_barber"`
 } // lo que responde el claim del toke
 
 var TokenKey = []byte("mytokenapikey")
 
-func GenerateToken(user_id uint, isAdmin bool, name string, email string, surname string, phone_number string) (string, error) {
+func GenerateToken(user_id uint, isAdmin bool, name string, email string, surname string, phone_number string, isBarber bool) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour) // Token expira en 24 horas
 
 	claim := JWTClaim{
@@ -38,6 +40,7 @@ func GenerateToken(user_id uint, isAdmin bool, name string, email string, surnam
 		IsAdmin:      isAdmin,
 		Surname:      surname,
 		Phone_number: phone_number,
+		Is_barber:    isBarber,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(), // Hora de expiración en formato Unix
 
@@ -108,12 +111,13 @@ func VerfiyToken(tokenString string) (*VerifyTokenRes, error) {
 		}
 
 		user := &VerifyTokenRes{
-			ID:           int(id),                   // Convertir de float64 a uint
+			ID:           uint(id),                  // Convertir de float64 a uint
 			Name:         claims["name"].(string),   // Asume que el claim "name" existe
 			Email:        claims["email"].(string),  // Asume que el claim "email" existe
 			Is_admin:     claims["is_admin"].(bool), // Asume que el claim "is_admin" existe
 			Surname:      claims["surname"].(string),
 			Phone_number: claims["phone_number"].(string),
+			Is_barber:    claims["is_barber"].(bool),
 		}
 
 		return user, nil

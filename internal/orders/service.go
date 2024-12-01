@@ -12,6 +12,14 @@ func NewOrderService(ord_srv *OrderRepository) *OrderService {
 	}
 }
 
-func (or_srv *OrderService) CreateNewOrder(ctx context.Context, payment *Payment) (*Payment, error) {
-	return or_srv.OrderRepo.CreateNewOrder(ctx, payment)
+func (or_srv *OrderService) CreateNewOrder(ctx context.Context, order *Order) (*Order, error) {
+	return or_srv.OrderRepo.CreateNewOrder(ctx, order)
+}
+
+func (or_srv *OrderService) GetOrderService(ctx context.Context, limit int, offset int) (*[]Order, error) {
+	return or_srv.OrderRepo.GetAllOrders(ctx, limit, offset)
+}
+
+func (or_srv *OrderService) GetOrderByUserID(ctx context.Context, userID int) (*Order, error) {
+	return or_srv.OrderRepo.GetOrderByUserID(ctx, userID)
 }

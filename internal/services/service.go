@@ -13,9 +13,13 @@ func NewSrvRepository(srv_r *ServiceRepository) *Srv_Service {
 }
 
 func (s *Srv_Service) CreateService(ctx context.Context, service *Service) (*Service, error) {
-	return s.Srv_Repository.CreateService(ctx, service)
+	return s.Srv_Repository.CreateNewService(ctx, service)
 }
 
-func (s *Srv_Service) GetServices(ctx context.Context) ([]*Service, error) {
-	return s.Srv_Repository.GetAllServices(ctx)
+func (s *Srv_Service) GetServices(ctx context.Context, limit int, offset int) (*[]Service, error) {
+	return s.Srv_Repository.GetAllServices(ctx, limit, offset)
+}
+
+func (s *Srv_Service) UpdateService(ctx context.Context, service *Service, id string) (*Service, error) {
+	return s.Srv_Repository.UpdateServiceByID(ctx, service, id)
 }
