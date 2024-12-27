@@ -19,6 +19,9 @@ func OrderRoutes(r chi.Router, db *gorm.DB) {
 		r.Post("/webhook", orderHandler.WebHook)
 		r.Get("/list/{limit}/{offset}", orderHandler.GetOrders)
 		r.Get("/success", orderHandler.Success)
+		r.Get("/pending", orderHandler.GetPendingOrder)
+		r.Post("/refound/{id}/{amount}", orderHandler.Refound)
+		r.Get("/historial/{limit}/{offset}", orderHandler.GetOrderHistorial)
 		r.HandleFunc("/notification", HandleConnection)
 	})
 }

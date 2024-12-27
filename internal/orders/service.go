@@ -23,3 +23,7 @@ func (or_srv *OrderService) GetOrderService(ctx context.Context, limit int, offs
 func (or_srv *OrderService) GetOrderByUserID(ctx context.Context, userID int) (*Order, error) {
 	return or_srv.OrderRepo.GetOrderByUserID(ctx, userID)
 }
+
+func (or_srv *OrderService) GetOrdersHistorial(ctx context.Context, userID int, limit int, offset int) (*[]Order, error) {
+	return or_srv.OrderRepo.GetOrdersHistorial(ctx, userID, limit, offset)
+}

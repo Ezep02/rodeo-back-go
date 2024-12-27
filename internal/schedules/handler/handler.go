@@ -6,11 +6,14 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/ezep02/rodeo/internal/schedules/models"
 	"github.com/ezep02/rodeo/internal/schedules/services"
+	"github.com/go-chi/chi/v5"
+
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
@@ -22,18 +25,17 @@ type ScheduleHandler struct {
 }
 
 // WEBSOCKET
-// Peer estructura para manejar una conexión peer-to-peer
 type Peer struct {
 	connection *websocket.Conn // Conexión WebSocket activa
-	mu         sync.Mutex      // Mutex para concurrencia en la conexión
+	mu         sync.Mutex
 }
 
 // Crear una instancia global del peer
 var peer Peer
 
-// Configuración del upgrader de WebSocket
+// Configuracion del upgrader de WebSocket
 var upgrader = websocket.Upgrader{
-	CheckOrigin:     func(r *http.Request) bool { return true }, // Permitir todas las conexiones (ajusta según sea necesario)
+	CheckOrigin:     func(r *http.Request) bool { return true }, // Permitir todas las conexiones
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
@@ -47,7 +49,6 @@ func NewSchedulHandler(sch_srv *services.ScheduleService) *ScheduleHandler {
 
 func (sch_h *ScheduleHandler) CreateNewSchedule(rw http.ResponseWriter, r *http.Request) {
 
-	// Leer el cuerpo de la solicitud
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(rw, "No se puede procesar el cuerpo de la solicitud", http.StatusBadRequest)
@@ -55,7 +56,6 @@ func (sch_h *ScheduleHandler) CreateNewSchedule(rw http.ResponseWriter, r *http.
 	}
 	defer r.Body.Close()
 
-	// Deserializar el JSON recibido
 	var scheduleReq []models.ShiftRequest
 	if err := json.Unmarshal(b, &scheduleReq); err != nil {
 		log.Printf("Error deserializando JSON: %v", err)
@@ -69,16 +69,34 @@ func (sch_h *ScheduleHandler) CreateNewSchedule(rw http.ResponseWriter, r *http.
 		http.Error(rw, "No token provided", http.StatusUnauthorized)
 		return
 	}
-	// Validar el token
+
 	tokenString := cookie.Value
 	token, err := jwt.VerfiyToken(tokenString)
 	if err != nil {
 		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
+		return
 	}
 
-	scheduleList, err := sch_h.Sch_serv.Sch_repo.CreateNewSchedul(sch_h.Ctx, &scheduleReq, int(token.ID))
+	if !token.Is_barber {
+		http.Error(rw, "Barbero no autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	scheduleList, err := sch_h.Sch_serv.CreateNewSchedulService(sch_h.Ctx, &scheduleReq, int(token.ID), token.Name)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
+	}
+
+	msgBytes, err := json.Marshal(scheduleList)
+	if err != nil {
+		http.Error(rw, "Error interno al procesar la orden", http.StatusInternalServerError)
+		return
+	}
+
+	err = sendUpdatedData(websocket.TextMessage, msgBytes)
+
+	if err != nil {
+		log.Println("Error al enviar mensaje al cliente:", err.Error())
 	}
 
 	rw.Header().Set("Content-Type", "application/json")
@@ -101,7 +119,12 @@ func (sch_h *ScheduleHandler) GetSchedules(rw http.ResponseWriter, r *http.Reque
 		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
 	}
 
-	schedulesList, err := sch_h.Sch_serv.Sch_repo.GetSchedules(sch_h.Ctx, int(token.ID))
+	if !token.Is_barber {
+		http.Error(rw, "Barbero no autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	schedulesList, err := sch_h.Sch_serv.GetSchedules(sch_h.Ctx, int(token.ID))
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusNotFound)
 		return
@@ -122,7 +145,7 @@ func (sch *ScheduleHandler) UpdateSchedules(rw http.ResponseWriter, r *http.Requ
 	}
 	defer r.Body.Close()
 
-	var updateSchedule []models.ScheduleModifyDay
+	var updateSchedule []models.ScheduleResponse
 
 	if err := json.Unmarshal(b, &updateSchedule); err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
@@ -142,23 +165,29 @@ func (sch *ScheduleHandler) UpdateSchedules(rw http.ResponseWriter, r *http.Requ
 		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
 	}
 
+	if !token.Is_barber {
+		http.Error(rw, "Barbero no autorizado", http.StatusUnauthorized)
+		return
+	}
+
 	var newShift []models.Shift
 	var updateShift []models.Shift
 	var updateScheduleList []models.Schedule
+
 	// CREACION DE NUEVOS SHIFTS
 	for _, shift_add := range updateSchedule {
 		// Check si cambio el schedule
 		if shift_add.ScheduleStatus == "UPDATE" {
+
 			scheduleUpdateRequest := models.Schedule{
 				Model: &gorm.Model{
 					ID:        uint(shift_add.ID),
 					UpdatedAt: time.Now(),
 				},
-				User_id:       int(token.ID),
-				Schedule_type: shift_add.DistributionType,
-				Schedule_day:  shift_add.Day,
-				Start_date:    shift_add.Date.Start,
-				End_date:      *shift_add.Date.End,
+				Barber_id:    int(token.ID),
+				Schedule_day: shift_add.Day,
+				Start_date:   shift_add.Start,
+				End_date:     shift_add.End,
 			}
 			updateScheduleList = append(updateScheduleList, scheduleUpdateRequest)
 		}
@@ -168,27 +197,28 @@ func (sch *ScheduleHandler) UpdateSchedules(rw http.ResponseWriter, r *http.Requ
 
 				switch add.ShiftStatus {
 				case "UPDATE":
-					if err != nil {
-						log.Println("Error parsing CreatedAt:", err)
-						return
-					}
 
 					shiftUpdateRequest := models.Shift{
 						Model: &gorm.Model{
 							ID:        uint(add.ID),
 							UpdatedAt: time.Now(),
 						},
-						Day:         shift_add.Day,
-						Schedule_id: uint(shift_add.ID),
-						Start_time:  add.Start_Time,
+						Day:             shift_add.Day,
+						Schedule_id:     uint(shift_add.ID),
+						Start_time:      add.Start_time,
+						Available:       add.Available,
+						Created_by_name: add.Created_by_name,
 					}
 					updateShift = append(updateShift, shiftUpdateRequest)
 				case "NEW":
+
 					// Crear un objeto para nuevos shifts
 					shiftRequest := models.Shift{
-						Day:         shift_add.Day,
-						Schedule_id: uint(shift_add.ID),
-						Start_time:  add.Start_Time,
+						Day:             shift_add.Day,
+						Schedule_id:     uint(shift_add.ID),
+						Start_time:      add.Start_time,
+						Created_by_name: token.Name,
+						Available:       true,
 					}
 					newShift = append(newShift, shiftRequest)
 				case "NOT CHANGE":
@@ -223,24 +253,13 @@ func (sch *ScheduleHandler) UpdateSchedules(rw http.ResponseWriter, r *http.Requ
 							shift := (*newShiftRes)[counter]
 
 							// Mapeamos el modelo de GORM Shift a la estructura esperada en ShiftAdd
-							sch.ShiftAdd[indx] = struct {
-								CreatedAt   string `json:"CreatedAt,omitempty"`
-								Day         string `json:"Day,omitempty"`
-								DeletedAt   string `json:"DeletedAt,omitempty"`
-								ID          int    `json:"ID"`
-								ScheduleID  int    `json:"Schedule_id,omitempty"`
-								Start_Time  string `json:"Start_time"`
-								UpdatedAt   string `json:"UpdatedAt,omitempty"`
-								ShiftStatus string `json:"Shift_status"`
-							}{
-								CreatedAt:   shift.CreatedAt.String(),
-								Day:         shift.Day,
-								DeletedAt:   shift.DeletedAt.Time.String(),
-								ID:          int(shift.ID),
-								ScheduleID:  int(shift.Schedule_id),
-								Start_Time:  shift.Start_time,
-								UpdatedAt:   shift.UpdatedAt.String(),
-								ShiftStatus: "NOT CHANGE",
+							sch.ShiftAdd[indx] = models.Shift{
+								Model:           shift.Model,
+								Schedule_id:     uint(sch.ID),
+								Day:             sch.Day,
+								Start_time:      shift.Start_time,
+								Available:       shift.Available,
+								Created_by_name: shift.Created_by_name,
 							}
 							// Incrementar el contador
 							counter++
@@ -252,6 +271,7 @@ func (sch *ScheduleHandler) UpdateSchedules(rw http.ResponseWriter, r *http.Requ
 				log.Println("No se crearon nuevos shifts o la respuesta fue nil")
 			}
 
+			log.Println("newShiftRes:", newShiftRes)
 			// DEVOLVER AL FRONT
 			msgBytes, err := json.Marshal(updateSchedule)
 			if err != nil {
@@ -342,6 +362,52 @@ func (sch *ScheduleHandler) UpdateSchedules(rw http.ResponseWriter, r *http.Requ
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(newShift)
+}
+
+func (sch *ScheduleHandler) GetBarberSchedules(rw http.ResponseWriter, r *http.Request) {
+
+	barberID := chi.URLParam(r, "id")
+
+	parsedID, err := strconv.Atoi(barberID)
+
+	if err != nil {
+		http.Error(rw, "No se encontro un barbero con ese id", http.StatusInternalServerError)
+		return
+	}
+
+	barberSchedulesList, err := sch.Sch_serv.GetSchedules(sch.Ctx, parsedID)
+
+	if err != nil {
+		http.Error(rw, "Error al obtener los horarios", http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(barberSchedulesList)
+}
+
+func (sch *ScheduleHandler) UpdateShiftStatus(rw http.ResponseWriter, r *http.Request) {
+
+	idParam := chi.URLParam(r, "id")
+
+	parsedID, err := strconv.Atoi(idParam)
+	if err != nil {
+		http.Error(rw, "Error parseando el parametro id", http.StatusBadRequest)
+		return
+	}
+
+	updatedShift, err := sch.Sch_serv.UpdateShiftByID(sch.Ctx, parsedID)
+
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(updatedShift)
+
 }
 
 // HandleConnection gestiona una conexión WebSocket P2P

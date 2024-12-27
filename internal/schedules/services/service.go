@@ -17,8 +17,12 @@ func NewOrderService(sch_repo *repository.SchedulesRepository) *ScheduleService 
 	}
 }
 
-func (sch_s *ScheduleService) CreateNewSchedulService(ctx context.Context, schedul *[]models.ShiftRequest, userID int) (*[]models.ScheduleResponse, error) {
-	return sch_s.Sch_repo.CreateNewSchedul(ctx, schedul, userID)
+func (sch_s *ScheduleService) GetSchedules(ctx context.Context, id int) (*[]models.ScheduleResponse, error) {
+	return sch_s.Sch_repo.GetSchedules(ctx, id)
+}
+
+func (sch_s *ScheduleService) CreateNewSchedulService(ctx context.Context, schedul *[]models.ShiftRequest, barberID int, barberName string) (*[]models.ScheduleResponse, error) {
+	return sch_s.Sch_repo.CreateNewSchedul(ctx, schedul, barberID, barberName)
 }
 
 func (sch_s *ScheduleService) CreateNewShift(ctx context.Context, shift *[]models.Shift) (*[]models.Shift, error) {
@@ -33,6 +37,10 @@ func (sch_s *ScheduleService) UpdateShiftList(ctx context.Context, data *[]model
 	return sch_s.Sch_repo.UpdateShift(ctx, data)
 }
 
-func (sch_s *ScheduleService) UpdateScheduleList(ctx context.Context, userID int, data *[]models.Schedule) (*[]models.Schedule, error) {
-	return sch_s.Sch_repo.UpdateSchedules(ctx, userID, data)
+func (sch_s *ScheduleService) UpdateShiftByID(ctx context.Context, shift_id int) (*models.Shift, error) {
+	return sch_s.Sch_repo.UpdateShiftByID(ctx, shift_id)
+}
+
+func (sch_s *ScheduleService) UpdateScheduleList(ctx context.Context, barberID int, data *[]models.Schedule) (*[]models.Schedule, error) {
+	return sch_s.Sch_repo.UpdateSchedules(ctx, barberID, data)
 }

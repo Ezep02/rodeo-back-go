@@ -17,17 +17,16 @@ func NewSchedulesRepository(db *gorm.DB) *SchedulesRepository {
 		Connection: db,
 	}
 }
-func (sc *SchedulesRepository) CreateNewSchedul(ctx context.Context, schedules *[]models.ShiftRequest, userID int) (*[]models.ScheduleResponse, error) {
+func (sc *SchedulesRepository) CreateNewSchedul(ctx context.Context, schedules *[]models.ShiftRequest, barberID int, barberName string) (*[]models.ScheduleResponse, error) {
 	var createdSchedules []models.ScheduleResponse
 
 	for _, sch := range *schedules {
 		// Crear un nuevo ScheduleRequest
 		newSchedule := &models.Schedule{
-			User_id:       userID,
-			Schedule_type: sch.DistributionType,
-			Start_date:    sch.Date.Start,
-			End_date:      sch.Date.End,
-			Schedule_day:  sch.Day,
+			Barber_id:    barberID,
+			Start_date:   sch.Start,
+			End_date:     sch.End,
+			Schedule_day: sch.Day,
 		}
 
 		// Guardar el nuevo ScheduleRequest en la base de datos
@@ -36,7 +35,7 @@ func (sc *SchedulesRepository) CreateNewSchedul(ctx context.Context, schedules *
 			return nil, result.Error
 		}
 
-		// Recuperar el último ScheduleRequest creado
+		// Recuperar el ultimo ScheduleRequest creado
 		var lastSchedule models.Schedule
 		sc.Connection.WithContext(ctx).Last(&lastSchedule)
 
@@ -44,11 +43,12 @@ func (sc *SchedulesRepository) CreateNewSchedul(ctx context.Context, schedules *
 		var shifts []models.Shift
 
 		// Crear los Shifts asociados al ScheduleRequest
-		for _, s := range sch.Shifts {
+		for _, s := range sch.Shift_add {
 			newShift := models.Shift{
-				Schedule_id: lastSchedule.ID, // Asociar el Shift con el ScheduleRequest
-				Day:         sch.Day,
-				Start_time:  s.Start,
+				Schedule_id:     lastSchedule.ID, // Asociar el Shift con el ScheduleRequest
+				Day:             sch.Day,
+				Start_time:      s.Start,
+				Created_by_name: barberName,
 			}
 
 			// Guardar el nuevo Shift en la base de datos
@@ -69,12 +69,11 @@ func (sc *SchedulesRepository) CreateNewSchedul(ctx context.Context, schedules *
 				UpdatedAt: lastSchedule.UpdatedAt,
 				DeletedAt: lastSchedule.DeletedAt,
 			},
-			User_id:       userID,
-			Schedule_type: sch.DistributionType,
-			Start_date:    sch.Date.Start,
-			End_date:      sch.Date.End,
-			Shifts:        shifts,
-			Day:           sch.Day,
+			Barber_id: barberID,
+			Start:     sch.Start,
+			End:       sch.End,
+			ShiftAdd:  shifts,
+			Day:       sch.Day,
 		}
 
 		// Agregar el ScheduleResponse creado al arreglo de horarios
@@ -85,46 +84,41 @@ func (sc *SchedulesRepository) CreateNewSchedul(ctx context.Context, schedules *
 	return &createdSchedules, nil
 }
 
-func (sc *SchedulesRepository) GetSchedules(ctx context.Context, userID int) (*[]models.ScheduleResponse, error) {
-	// Contenedores para los datos
+func (sc *SchedulesRepository) GetSchedules(ctx context.Context, barberID int) (*[]models.ScheduleResponse, error) {
 	var schedules []models.Schedule
 
-	// Obtener los schedules del usuario
+	// Obtener los schedules
 	if err := sc.Connection.WithContext(ctx).
-		Where("user_id = ?", userID).
 		Find(&schedules).Error; err != nil {
 		log.Println("Error al obtener los schedules:", err)
 		return nil, err
 	}
 
+	// Lista para almacenar las respuestas formateadas
 	var response []models.ScheduleResponse
+
 	// Recorrer cada schedule para obtener sus shifts
-	for i, sch := range schedules {
+	for _, sch := range schedules {
 		var scheduleShifts []models.Shift
 
 		// Obtener los shifts asociados al schedule actual
 		if err := sc.Connection.WithContext(ctx).
-			Where("schedule_id = ?", schedules[i].ID).
+			Where("schedule_id = ?", sch.ID).
 			Find(&scheduleShifts).Error; err != nil {
-			log.Println("Error al obtener los shifts para schedule ID:", schedules[i].ID, err)
+			log.Printf("Error al obtener los shifts para schedule ID %d: %v", sch.ID, err)
 			return nil, err
 		}
-		// Asignar los shifts al schedule correspondiente
-		newSchedule := &models.ScheduleResponse{
-			Model: &gorm.Model{
-				ID:        sch.ID,
-				CreatedAt: sch.CreatedAt,
-				UpdatedAt: sch.UpdatedAt,
-				DeletedAt: sch.DeletedAt,
-			},
-			User_id:       userID,
-			Schedule_type: sch.Schedule_type,
-			Start_date:    sch.Start_date,
-			End_date:      sch.End_date,
-			Day:           sch.Schedule_day,
-			Shifts:        scheduleShifts,
-		}
-		response = append(response, *newSchedule)
+
+		// Crear la respuesta para cada schedule incluyendo los shifts filtrados
+		response = append(response, models.ScheduleResponse{
+			Model:     sch.Model,
+			Barber_id: barberID,
+			Start:     sch.Start_date,
+			End:       sch.End_date,
+			Day:       sch.Schedule_day,
+			ShiftAdd:  scheduleShifts,
+			ID:        int(sch.ID),
+		})
 	}
 
 	return &response, nil
@@ -142,9 +136,12 @@ func (sc *SchedulesRepository) CreateNewShift(ctx context.Context, shifts *[]mod
 	// Crear los Shifts asociados al ScheduleRequest
 	for _, s := range *shifts {
 		newShift := models.Shift{
-			Schedule_id: s.Schedule_id, // Asociar el Shift con el ScheduleRequest
-			Day:         s.Day,
-			Start_time:  s.Start_time,
+			Schedule_id:     s.Schedule_id, // Asociar el Shift con el ScheduleRequest
+			Day:             s.Day,
+			Start_time:      s.Start_time,
+			Available:       s.Available,
+			Created_by_name: s.Created_by_name,
+			ShiftStatus:     s.ShiftStatus,
 		}
 
 		// Guardar el nuevo Shift en la base de datos
@@ -171,7 +168,6 @@ func (sc *SchedulesRepository) DeleteShifts(ctx context.Context, ID_array []int)
 
 	for _, ID := range ID_array {
 		resultDelete := sc.Connection.WithContext(ctx).Where("id = ?", ID).Delete(&models.Shift{})
-		log.Println("Elimine:", ID)
 		//si algo sale mal, devuelve el error
 		if resultDelete.Error != nil {
 			return resultDelete.Error
@@ -216,7 +212,7 @@ func (sc *SchedulesRepository) UpdateShift(ctx context.Context, data *[]models.S
 	return &updatedShiftList, nil
 }
 
-func (sc *SchedulesRepository) UpdateSchedules(ctx context.Context, userID int, data *[]models.Schedule) (*[]models.Schedule, error) {
+func (sc *SchedulesRepository) UpdateSchedules(ctx context.Context, barberID int, data *[]models.Schedule) (*[]models.Schedule, error) {
 
 	var updatedSchedulesList []models.Schedule
 
@@ -225,11 +221,10 @@ func (sc *SchedulesRepository) UpdateSchedules(ctx context.Context, userID int, 
 	for _, sch := range *data {
 
 		updatedSchedule := models.Schedule{
-			Start_date:    sch.Start_date,
-			Schedule_day:  sch.Schedule_day,
-			End_date:      sch.End_date,
-			Schedule_type: sch.Schedule_type,
-			User_id:       userID,
+			Start_date:   sch.Start_date,
+			Schedule_day: sch.Schedule_day,
+			End_date:     sch.End_date,
+			Barber_id:    barberID,
 		}
 
 		result := tx.Where("id = ?", sch.ID).Updates(updatedSchedule)
@@ -249,4 +244,28 @@ func (sc *SchedulesRepository) UpdateSchedules(ctx context.Context, userID int, 
 	}
 
 	return &updatedSchedulesList, nil
+}
+
+func (sc *SchedulesRepository) UpdateShiftByID(ctx context.Context, shiftID int) (*models.Shift, error) {
+	// Actualizar el campo "available"
+	result := sc.Connection.WithContext(ctx).
+		Model(&models.Shift{}).
+		Where("id = ?", shiftID).
+		Update("available", false)
+
+	// Verificar errores en la actualización
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// Buscar el registro actualizado
+	ShiftResponse := &models.Shift{}
+	findShift := sc.Connection.WithContext(ctx).Where("id = ?", shiftID).First(ShiftResponse)
+
+	// Verificar errores en la búsqueda
+	if findShift.Error != nil {
+		return nil, findShift.Error
+	}
+
+	return ShiftResponse, nil
 }

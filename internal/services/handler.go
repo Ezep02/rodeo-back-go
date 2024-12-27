@@ -50,7 +50,7 @@ func NewServiceHandler(srv_service *Srv_Service) *Srvs_Handler {
 // create service handler
 func (h *Srvs_Handler) CreateService(rw http.ResponseWriter, r *http.Request) {
 
-	var srv Service
+	var srv ServiceRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&srv); err != nil {
 		http.Error(rw, "No se pudo parsear correctamente el cuerpo de la peticion", http.StatusBadRequest)
@@ -76,10 +76,16 @@ func (h *Srvs_Handler) CreateService(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// obtener el user ID
-	srv.Created_by_id = token.ID
+	newSrvReq := Service{
+		Title:            srv.Title,
+		Created_by_id:    token.ID,
+		Description:      srv.Description,
+		Price:            srv.Price,
+		Service_Duration: srv.Service_Duration,
+		Preview_url:      srv.Preview_url,
+	}
 
-	newSrv, err := h.Srvs_Service.CreateService(h.Ctx, &srv)
+	newSrv, err := h.Srvs_Service.CreateService(h.Ctx, &newSrvReq)
 
 	if err != nil {
 		log.Printf("[Create Req] No se pudo crear el servicio %s", err.Error())
@@ -87,26 +93,32 @@ func (h *Srvs_Handler) CreateService(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// si se creo correctamente, utilizar un webhook:
-	// 1. actualizar el control panel
-	// 2. actualizar los servicios disponibles
+	msg, err := json.Marshal(newSrv)
+	if err != nil {
+		log.Println("Error al parsear la informacion")
+		http.Error(rw, "Error parseando el mensaje", http.StatusExpectationFailed)
+		return
+	}
+
+	// Enviar el mensaje al cliente específico
+	err = sendUpdatedData(websocket.TextMessage, msg)
+	if err != nil {
+		log.Println("Error al enviar mensaje al cliente:", err.Error())
+		http.Error(rw, "Error interno al procesar la orden", http.StatusInternalServerError)
+		return
+	}
+
 	// 3. notification push en el client view
 
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(newSrv)
+	json.NewEncoder(rw).Encode("Servicio creado correctamente")
 }
 
 // get all services handler
 func (h *Srvs_Handler) GetAllServices(rw http.ResponseWriter, r *http.Request) {
 
-	lmt := chi.URLParam(r, "limit")
-	off := chi.URLParam(r, "offset")
-
-	limit, _ := strconv.Atoi(lmt)
-	offset, _ := strconv.Atoi(off)
-
-	services, err := h.Srvs_Service.GetServices(h.Ctx, limit, offset)
+	services, err := h.Srvs_Service.GetServices(h.Ctx)
 
 	if err != nil {
 		http.Error(rw, "Algo salio mal al intentar obtener los servicios", http.StatusBadRequest)
@@ -189,6 +201,66 @@ func (h *Srvs_Handler) UpdateServices(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode("Servicio correctamente actualizado")
+}
+
+// Get Available barbers list
+func (h *Srvs_Handler) GetBarberList(rw http.ResponseWriter, r *http.Request) {
+
+	barberList, err := h.Srvs_Service.GetBarberList(h.Ctx)
+
+	if err != nil {
+		log.Println("Error al obtener la lista de barberos", err.Error())
+		http.Error(rw, "Error al intentar obtener la lista de barberos", http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(barberList)
+}
+
+// Delete service by ID
+func (h *Srvs_Handler) DeleteServiceByID(rw http.ResponseWriter, r *http.Request) {
+
+	srv_id := chi.URLParam(r, "id")
+
+	cookie, err := r.Cookie("auth_token")
+
+	if err != nil {
+		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		return
+	}
+	// Validar el token
+	tokenString := cookie.Value
+	token, err := jwt.VerfiyToken(tokenString)
+
+	if err != nil {
+		log.Printf("[TOKEN] no se pudo verificar el token, %s", err.Error())
+		http.Error(rw, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	if !token.Is_barber {
+		http.Error(rw, "Usuario no autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	parsedID, err := strconv.Atoi(srv_id)
+
+	if err != nil {
+		http.Error(rw, "Error parseando el service id", http.StatusConflict)
+		return
+	}
+
+	if err := h.Srvs_Service.DeleteServiceByID(h.Ctx, parsedID); err != nil {
+		http.Error(rw, "No se pudo completar la eliminacion, vuelva a intentarlo", http.StatusExpectationFailed)
+		return
+	}
+
+	rw.Header().Set("Content-type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode("Eliminado correctamente")
+
 }
 
 // HandleConnection gestiona una conexión WebSocket P2P

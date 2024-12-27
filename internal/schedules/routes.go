@@ -22,6 +22,8 @@ func SchedulesRoutes(r chi.Router, db *gorm.DB) {
 		r.Post("/", sch_Handler.CreateNewSchedule)
 		r.Get("/admin-list", sch_Handler.GetSchedules)
 		r.Post("/admin-list", sch_Handler.UpdateSchedules)
+		r.Get("/barber/{id}", sch_Handler.GetBarberSchedules)
+		r.Put("/shift/{id}", sch_Handler.UpdateShiftStatus)
 		r.HandleFunc("/live-update", handler.HandleConnection)
 	})
 }

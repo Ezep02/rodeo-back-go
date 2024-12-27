@@ -30,6 +30,10 @@ func NewOrderHandler(orders_srv *OrderService) *OrderHandler {
 	}
 }
 
+const (
+	mp_access_token = "APP_USR-196506190136225-122418-9c6e8e77138259dafabfc5c0f443d21a-1432087693"
+)
+
 func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Request) {
 
 	var newOrder ServiceOrder
@@ -43,7 +47,7 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 	defer r.Body.Close()
 
 	// Si el pago es aceptado, se crea la orden
-	accessToken := "APP_USR-196506190136225-092022-41af146cb6426644ccd360b92edc7ef6-1432087693"
+	mp_access_token := "APP_USR-196506190136225-092022-41af146cb6426644ccd360b92edc7ef6-1432087693"
 	cookie, err := r.Cookie("auth_token")
 
 	if err != nil {
@@ -69,16 +73,22 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 		ExternalReference:   "IWD1238971",
 		Items: []Item{
 			{
-				ID:          newOrder.ID,
+				ID:          newOrder.Service_id,
 				Title:       newOrder.Title,
 				Quantity:    1,
-				UnitPrice:   int(newOrder.Price),
+				UnitPrice:   newOrder.Price,
 				Description: newOrder.Description,
 			},
 		},
 		Metadata: Metadata{
-			Service_duration: newOrder.Service_Duration,
+			Service_duration: newOrder.Service_duration,
 			UserID:           token.ID,
+			Barber_id:        newOrder.Barber_id,
+			Created_by_id:    newOrder.Created_by_id,
+			Date:             newOrder.Date,
+			Weak_day:         newOrder.Weak_day,
+			Schedule:         newOrder.Schedule,
+			Shift_id:         newOrder.Shift_id,
 		},
 		Payer: Payer{
 			Email:   token.Email,
@@ -94,7 +104,7 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 			Installments:           12,
 			DefaultPaymentMethodID: "account_money",
 		},
-		NotificationURL:    "https://2fd0-181-16-121-113.ngrok-free.app/order/webhook",
+		NotificationURL:    "https://479a-181-16-122-41.ngrok-free.app/order/webhook",
 		Expires:            true,
 		ExpirationDateFrom: "2024-01-01T12:00:00.000-04:00",
 		ExpirationDateTo:   "2024-12-31T12:00:00.000-04:00",
@@ -118,7 +128,7 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 
 	// Establecer las cabeceras necesarias
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Authorization", "Bearer "+mp_access_token)
 
 	// Enviar la solicitud
 	client := &http.Client{}
@@ -219,7 +229,7 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 	newOrder, err := orh.ord_srv.CreateNewOrder(orh.ctx, &Order{
 		Title:            payment.AdditionalInfo.Items[0].Title,
 		Price:            payment.AdditionalInfo.Items[0].UnitPrice,
-		Service_Duration: payment.Metadata.Service_duration,
+		Service_duration: payment.Metadata.Service_duration,
 		User_id:          int(payment.Metadata.UserID),
 		Service_id:       payment.AdditionalInfo.Items[0].ID,
 		Payment_id:       payment.ID,
@@ -229,6 +239,12 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 		Mp_order_id:      int64(payment.ID),
 		Date_approved:    payment.DateApproved,
 		Mp_status:        payment.Status,
+		Barber_id:        payment.Metadata.Barber_id,
+		Date:             payment.Metadata.Date,
+		Created_by_id:    payment.Metadata.Created_by_id,
+		Weak_day:         payment.Metadata.Weak_day,
+		Schedule:         payment.Metadata.Schedule,
+		Shift_id:         payment.Metadata.Shift_id,
 	})
 
 	if err != nil {
@@ -331,6 +347,130 @@ func (orh *OrderHandler) GetOrders(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(orders)
+}
+
+// Refound maneja la solicitud de reembolso
+func (orh *OrderHandler) Refound(rw http.ResponseWriter, r *http.Request) {
+
+	parsedID := chi.URLParam(r, "id")
+
+	// Construye la URL
+	url := fmt.Sprintf("https://api.mercadopago.com/v1/payments/%s/refunds", parsedID)
+
+	// Crea la solicitud HTTP
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		fmt.Println("Error al crear la solicitud:", err)
+		return
+	}
+	fmt.Println("Access Token:", mp_access_token)
+
+	// Configura las cabeceras
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", mp_access_token))
+	req.Header.Set("X-Idempotency-Key", "77e1c83b-7bb0-437b-bc50-a7a58e5660ac")
+
+	// Envía la solicitud
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error al enviar la solicitud:", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	log.Println("res", resp)
+
+	// Lee y procesa el cuerpo de la respuesta
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(rw, fmt.Sprintf("Error al leer la respuesta: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Procesa la respuesta
+	var refund RefundResponse
+	err = json.Unmarshal(body, &refund)
+	if err != nil {
+		http.Error(rw, fmt.Sprintf("Error al analizar la respuesta JSON: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(refund)
+}
+
+// Obtener turno pendiente
+func (orh *OrderHandler) GetPendingOrder(rw http.ResponseWriter, r *http.Request) {
+
+	// Validar el token
+	cookie, err := r.Cookie("auth_token")
+	if err != nil {
+		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		return
+	}
+
+	tokenString := cookie.Value
+	token, err := jwt.VerfiyToken(tokenString)
+
+	if err != nil {
+		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
+	}
+
+	nextOrder, err := orh.ord_srv.GetOrderByUserID(orh.ctx, int(token.ID))
+	if err != nil {
+		log.Println("No fue posible recuperar la orden")
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(nextOrder)
+}
+
+// Obtener historial de turnos
+func (orh *OrderHandler) GetOrderHistorial(rw http.ResponseWriter, r *http.Request) {
+
+	lim := chi.URLParam(r, "limit")
+	off := chi.URLParam(r, "offset")
+
+	parsedLim, err := strconv.Atoi(lim)
+	if err != nil {
+		http.Error(rw, "No se pudo parsear el limite", http.StatusUnauthorized)
+		return
+	}
+
+	parsedOff, err := strconv.Atoi(off)
+	if err != nil {
+		http.Error(rw, "No se pudo parsear el offset", http.StatusUnauthorized)
+		return
+	}
+
+	// Validar el token
+	cookie, err := r.Cookie("auth_token")
+	if err != nil {
+		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		return
+	}
+
+	tokenString := cookie.Value
+	token, err := jwt.VerfiyToken(tokenString)
+
+	if err != nil {
+		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
+		return
+	}
+
+	historial, err := orh.ord_srv.GetOrdersHistorial(orh.ctx, int(token.ID), parsedLim, parsedOff)
+	if err != nil {
+		http.Error(rw, "Algo fallo al recuperar el historial", http.StatusUnauthorized)
+		return
+	}
+
+	rw.Header().Set("Content-type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(historial)
 }
 
 // WEBSOCKET

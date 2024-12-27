@@ -1,6 +1,8 @@
 package orders
 
 import (
+	"time"
+
 	"gorm.io/gorm"
 )
 
@@ -42,6 +44,12 @@ type Payer struct {
 type Metadata struct {
 	Service_duration int  `json:"service_duration"`
 	UserID           uint `json:"user_id"`
+	Barber_id        int  `json:"Barber_id"`
+	Created_by_id    int  `json:"Created_by_id"`
+	Date             *time.Time
+	Weak_day         string `json:"Weak_day"`
+	Schedule         string `json:"Schedule"`
+	Shift_id         int
 }
 
 type PaymentMethods struct {
@@ -74,28 +82,23 @@ type Request struct {
 }
 
 type ServiceOrder struct {
-	ID               int     `json:"ID"`
-	Title            string  `json:"title"`
-	Description      string  `json:"description"`
-	Price            float64 `json:"price"`
-	Created_by_id    int
-	Service_Duration int `json:"service_duration"`
+	Barber_id        int `json:"Barber_id"`
+	Created_by_id    int `json:"Created_by_id"`
+	Date             *time.Time
+	Description      string `json:"Description"`
+	Price            int    `json:"Price"`
+	Service_duration int    `json:"Service_duration"`
+	Service_id       int    `json:"Service_id"`
+	Title            string `json:"Title"`
+	Weak_day         string `json:"Weak_day"`
+	Schedule         string `json:"Schedule"`
+	Shift_id         int    `json:"Shift_id"`
 }
 
-// type PaymentRequest struct {
-// 	*gorm.Model
-// 	UserID    int `json:"user_id" gorm:"not null"`
-// 	ServiceID int `json:"service_id" gorm:"not null"`
-// 	PaymentID int `json:"payment_id" gorm:"not null"`
-// 	Payment
-// }
-
-// Payment es la estructura que representará los datos del pago.
 type Order struct {
 	*gorm.Model
 	Title            string
 	Price            string
-	Service_Duration int
 	User_id          int
 	Service_id       string
 	Payment_id       int
@@ -107,6 +110,13 @@ type Order struct {
 	Date_approved    string
 	Mp_status        string
 	Mp_status_detail string
+	Barber_id        int
+	Created_by_id    int
+	Date             *time.Time
+	Service_duration int
+	Weak_day         string
+	Schedule         string
+	Shift_id         int
 }
 
 type PaymentResponse struct {
@@ -243,4 +253,32 @@ type TransactionDetails struct {
 	PayableDeferralPeriod    interface{} `json:"payable_deferral_period"`
 	PaymentMethodReferenceID interface{} `json:"payment_method_reference_id"`
 	TotalPaidAmount          float64     `json:"total_paid_amount"`
+}
+
+// REFOUND
+// Define una estructura que coincida con la respuesta
+type RefundResponse struct {
+	ID                   int         `json:"id"`
+	PaymentID            int         `json:"payment_id"`
+	Amount               float64     `json:"amount"`
+	Metadata             []struct{}  `json:"metadata"`
+	Source               []Source    `json:"source"`
+	DateCreated          string      `json:"date_created"`
+	UniqueSequenceNumber interface{} `json:"unique_sequence_number"`
+	RefundMode           string      `json:"refund_mode"`
+	AdjustmentAmount     float64     `json:"adjustment_amount"`
+	Status               int         `json:"status"`
+	Reason               interface{} `json:"reason"`
+	Label                []struct{}  `json:"label"`
+	PartitionDetails     []struct{}  `json:"partition_details"`
+}
+
+type Source struct {
+	Name struct {
+		EN string `json:"en"`
+		PT string `json:"pt"`
+		ES string `json:"es"`
+	} `json:"name"`
+	ID   string `json:"id"`
+	Type string `json:"type"`
 }

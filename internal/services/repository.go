@@ -32,13 +32,14 @@ func (r *ServiceRepository) CreateNewService(ctx context.Context, service *Servi
 		Description:      service.Description,
 		Service_Duration: service.Service_Duration,
 		Price:            service.Price,
+		Preview_url:      service.Preview_url,
 	}, nil
 }
 
-func (r *ServiceRepository) GetAllServices(ctx context.Context, limit int, offset int) (*[]Service, error) {
+func (r *ServiceRepository) GetAllServices(ctx context.Context) (*[]Service, error) {
 	var services []Service
 
-	result := r.Connection.WithContext(ctx).Limit(limit).Offset(offset).Order("created_at DESC").Find(&services)
+	result := r.Connection.WithContext(ctx).Order("created_at DESC").Find(&services)
 
 	if result.Error != nil {
 		return nil, result.Error
@@ -86,6 +87,27 @@ func (r *ServiceRepository) UpdateServiceByID(ctx context.Context, service *Serv
 	return updatedService, nil
 }
 
-func (r *ServiceRepository) DeleteServiceByID() {
+func (r *ServiceRepository) DeleteServiceByID(ctx context.Context, serviceID int) error {
 
+	result := r.Connection.WithContext(ctx).Where("id = ?", serviceID).Delete(&Service{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}
+
+// barber list
+func (r *ServiceRepository) GetBarberList(ctx context.Context) (*[]Users, error) {
+
+	var barberList []Users
+
+	tx := r.Connection.WithContext(ctx).Where("is_barber = ?", true).Find(&barberList)
+
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return &barberList, nil
 }
