@@ -36,16 +36,29 @@ func (r *ServiceRepository) CreateNewService(ctx context.Context, service *Servi
 	}, nil
 }
 
-func (r *ServiceRepository) GetAllServices(ctx context.Context) (*[]Service, error) {
-	var services []Service
+// para usuarios
+func (r *ServiceRepository) GetServices(ctx context.Context, limit int, offset int) (*[]Service, error) {
+	var services *[]Service
 
-	result := r.Connection.WithContext(ctx).Order("created_at DESC").Find(&services)
+	result := r.Connection.WithContext(ctx).Order("created_at desc").Offset(offset).Limit(limit).Find(&services)
 
 	if result.Error != nil {
 		return nil, result.Error
 	}
 
-	return &services, nil
+	return services, nil
+}
+
+func (r *ServiceRepository) GetBarberServices(ctx context.Context, limit int, offset int, barberID int) (*[]Service, error) {
+	var services *[]Service
+
+	result := r.Connection.WithContext(ctx).Where("created_by_id = ?", barberID).Order("created_at desc").Limit(limit).Offset(offset).Find(&services)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return services, nil
 }
 
 func (r *ServiceRepository) UpdateServiceByID(ctx context.Context, service *Service, id string) (*Service, error) {
@@ -96,18 +109,4 @@ func (r *ServiceRepository) DeleteServiceByID(ctx context.Context, serviceID int
 	}
 
 	return nil
-}
-
-// barber list
-func (r *ServiceRepository) GetBarberList(ctx context.Context) (*[]Users, error) {
-
-	var barberList []Users
-
-	tx := r.Connection.WithContext(ctx).Where("is_barber = ?", true).Find(&barberList)
-
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
-
-	return &barberList, nil
 }

@@ -19,11 +19,12 @@ func SchedulesRoutes(r chi.Router, db *gorm.DB) {
 
 	// Rutas del módulo de autenticación
 	r.Route("/schedules", func(r chi.Router) {
-		r.Post("/", sch_Handler.CreateNewSchedule)
-		r.Get("/admin-list", sch_Handler.GetSchedules)
-		r.Post("/admin-list", sch_Handler.UpdateSchedules)
-		r.Get("/barber/{id}", sch_Handler.GetBarberSchedules)
+		r.Post("/", sch_Handler.BarberSchedulesHandler) // Success, TODO: manejar la respuestas con un websocket
+		r.Get("/{limit}/{offset}", sch_Handler.GetBarberSchedulesHandler)
+		r.Get("/{limit}/{offset}", sch_Handler.GetAvailableSchedulesHandler)
 		r.Put("/shift/{id}", sch_Handler.UpdateShiftStatus)
-		r.HandleFunc("/live-update", handler.HandleConnection)
+		r.Get("/total-cuts", sch_Handler.GetBarberTotalCuts)
+		r.HandleFunc("/updates", handler.HandleConnection)
+
 	})
 }

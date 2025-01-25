@@ -42,14 +42,13 @@ type Payer struct {
 }
 
 type Metadata struct {
-	Service_duration int  `json:"service_duration"`
-	UserID           uint `json:"user_id"`
-	Barber_id        int  `json:"Barber_id"`
-	Created_by_id    int  `json:"Created_by_id"`
-	Date             *time.Time
-	Weak_day         string `json:"Weak_day"`
-	Schedule         string `json:"Schedule"`
-	Shift_id         int
+	Service_duration    int        `json:"service_duration"`
+	UserID              uint       `json:"user_id"`
+	Barber_id           int        `json:"Barber_id"`
+	Created_by_id       int        `json:"Created_by_id"`
+	Schedule_start_time string     `json:"Schedule_start_time"`
+	Schedule_day_date   *time.Time `json:"Schedule_day_date"`
+	Shift_id            int
 }
 
 type PaymentMethods struct {
@@ -77,46 +76,44 @@ type Request struct {
 	PaymentMethods      PaymentMethods `json:"payment_methods"`
 	NotificationURL     string         `json:"notification_url"`
 	Expires             bool           `json:"expires"`
-	ExpirationDateFrom  string         `json:"expiration_date_from"`
-	ExpirationDateTo    string         `json:"expiration_date_to"`
+	ExpirationDateFrom  *time.Time     `json:"expiration_date_from"`
+	ExpirationDateTo    *time.Time     `json:"expiration_date_to"`
 }
 
 type ServiceOrder struct {
-	Barber_id        int `json:"Barber_id"`
-	Created_by_id    int `json:"Created_by_id"`
-	Date             *time.Time
-	Description      string `json:"Description"`
-	Price            int    `json:"Price"`
-	Service_duration int    `json:"Service_duration"`
-	Service_id       int    `json:"Service_id"`
-	Title            string `json:"Title"`
-	Weak_day         string `json:"Weak_day"`
-	Schedule         string `json:"Schedule"`
-	Shift_id         int    `json:"Shift_id"`
+	Barber_id           int        `json:"Barber_id"`
+	Created_by_id       int        `json:"Created_by_id"`
+	Description         string     `json:"Description"`
+	Price               int        `json:"Price"`
+	Service_duration    int        `json:"Service_duration"`
+	Service_id          int        `json:"Service_id"`
+	Title               string     `json:"Title"`
+	Schedule_start_time string     `json:"Schedule_start_time"`
+	Schedule_day_date   *time.Time `json:"Schedule_day_date"`
+	Shift_id            int        `json:"Shift_id"`
 }
 
 type Order struct {
 	*gorm.Model
-	Title            string
-	Price            string
-	User_id          int
-	Service_id       string
-	Payment_id       int
-	Payer_name       string
-	Payer_surname    string
-	Email            string
-	Payer_phone      string
-	Mp_order_id      int64
-	Date_approved    string
-	Mp_status        string
-	Mp_status_detail string
-	Barber_id        int
-	Created_by_id    int
-	Date             *time.Time
-	Service_duration int
-	Weak_day         string
-	Schedule         string
-	Shift_id         int
+	Title               string
+	Price               string
+	User_id             int
+	Service_id          string
+	Payment_id          int
+	Payer_name          string
+	Payer_surname       string
+	Email               string
+	Payer_phone         string
+	Mp_order_id         int64
+	Date_approved       string
+	Mp_status           string
+	Mp_status_detail    string
+	Barber_id           int
+	Created_by_id       int
+	Shift_id            int
+	Schedule_day_date   *time.Time
+	Service_duration    int
+	Schedule_start_time string
 }
 
 type PaymentResponse struct {

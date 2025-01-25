@@ -31,8 +31,9 @@ func (or *OrderRepository) CreateNewOrder(ctx context.Context, order *Order) (*O
 func (or *OrderRepository) GetAllOrders(ctx context.Context, limit int, offset int) (*[]Order, error) {
 
 	var orders *[]Order
+	today := time.Now().Truncate(24 * time.Hour)
 
-	result := or.Connection.WithContext(ctx).Limit(limit).Offset(offset).Order("created_at desc").Find(&orders)
+	result := or.Connection.WithContext(ctx).Where("schedule_day_date >= ?", today).Limit(limit).Offset(offset).Order("created_at desc").Find(&orders)
 
 	if result.Error != nil {
 		return nil, result.Error

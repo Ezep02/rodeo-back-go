@@ -12,6 +12,7 @@ import (
 
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/ezep02/rodeo/utils"
+	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
 )
 
@@ -26,6 +27,14 @@ func NewAuthHandler(authServ *AuthService) *AuthHandler {
 		ctx:      context.Background(),
 	}
 }
+
+var (
+	auth_token = viper.GetString("AUTH_TOKEN")
+)
+
+// CLIENT_ID
+// REDIRECT_URL
+// CLIENT_SECRET
 
 func (h *AuthHandler) RegisterUserHandler(rw http.ResponseWriter, r *http.Request) {
 
@@ -43,10 +52,23 @@ func (h *AuthHandler) RegisterUserHandler(rw http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// verificar que el email no este en uso
+	u, err := h.AuthServ.SearchUserByEmail(h.ctx, user.Email)
+	if err != nil {
+		http.Error(rw, "Algo salio mal intentando registrar al usuario", http.StatusBadRequest)
+		return
+	}
+
+	if u.Email != "" {
+		http.Error(rw, "El email ingresado ya se encuentra en uso", http.StatusBadRequest)
+		return
+	}
+
 	// hash de la contraseña (encriptacion)
 	hash, err := utils.HashPassword(user.Password)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	user.Password = hash
@@ -58,9 +80,6 @@ func (h *AuthHandler) RegisterUserHandler(rw http.ResponseWriter, r *http.Reques
 		http.Error(rw, "Error registrando usuario", http.StatusInternalServerError)
 		return
 	}
-
-	// Devolver el usuario registrado como respuesta
-	rw.WriteHeader(http.StatusCreated)
 
 	// Serializar el usuario registrado en JSON y enviarlo como respuesta
 	response, err := json.Marshal(registeredUser)
@@ -78,9 +97,9 @@ func (h *AuthHandler) RegisterUserHandler(rw http.ResponseWriter, r *http.Reques
 
 	// Establece la cookie con el token
 	http.SetCookie(rw, &http.Cookie{
-		Name:     "auth_token",
+		Name:     auth_token,
 		Value:    tokenString,
-		Expires:  time.Now().Add(24 * time.Hour),
+		Expires:  time.Now().Add(24 * time.Hour * 30),
 		Domain:   "", // Usa el dominio actual por defecto
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
@@ -89,7 +108,8 @@ func (h *AuthHandler) RegisterUserHandler(rw http.ResponseWriter, r *http.Reques
 	})
 
 	rw.Header().Set("Content-Type", "application/json")
-	rw.Write(response)
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(response)
 }
 
 func (h *AuthHandler) LoginUserHandler(rw http.ResponseWriter, r *http.Request) {
@@ -109,20 +129,19 @@ func (h *AuthHandler) LoginUserHandler(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	loggedUser, err := h.AuthServ.LoginUserServ(h.ctx, &loggedUserReq)
+	user, err := h.AuthServ.SearchUserByEmail(h.ctx, loggedUserReq.Email)
 	if err != nil {
 		http.Error(rw, "Error al iniciar sesion del usuario", http.StatusInternalServerError)
 		return
 	}
 
-	response, err := json.Marshal(loggedUser)
-	if err != nil {
-		http.Error(rw, "Error al serializar la respuesta", http.StatusInternalServerError)
+	if err := utils.HashCompare(user.Password, loggedUserReq.Password); err != nil {
+		http.Error(rw, "Contraseña incorrecta, volve a intentarlo", http.StatusInternalServerError)
 		return
 	}
 
 	// si el registro fue exitoso, se crea un token
-	tokenString, err := jwt.GenerateToken(loggedUser.ID, loggedUser.Is_admin, loggedUser.Name, loggedUser.Email, loggedUser.Surname, loggedUser.Phone_number, loggedUser.Is_barber)
+	tokenString, err := jwt.GenerateToken(user.ID, user.Is_admin, user.Name, user.Email, user.Surname, user.Phone_number, user.Is_barber)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -130,9 +149,9 @@ func (h *AuthHandler) LoginUserHandler(rw http.ResponseWriter, r *http.Request) 
 
 	// Establece la cookie con el token
 	http.SetCookie(rw, &http.Cookie{
-		Name:     "auth_token",
+		Name:     auth_token,
 		Value:    tokenString,
-		Expires:  time.Now().Add(24 * time.Hour),
+		Expires:  time.Now().Add(24 * time.Hour * 30),
 		Domain:   "", // Usa el dominio actual por defecto
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
@@ -141,12 +160,13 @@ func (h *AuthHandler) LoginUserHandler(rw http.ResponseWriter, r *http.Request) 
 	})
 
 	rw.Header().Set("Content-Type", "application/json")
-	rw.Write(response)
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(user)
 }
 
 func (h *AuthHandler) VerifyTokenHandler(rw http.ResponseWriter, r *http.Request) {
 
-	cookie, err := r.Cookie("auth_token")
+	cookie, err := r.Cookie(auth_token)
 
 	if err != nil {
 		http.Error(rw, "No token provided", http.StatusUnauthorized)
@@ -181,16 +201,22 @@ func (h *AuthHandler) LogoutSession(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-const (
-	clientID     string = "8217850452-8cdtv7q9adb2hl3mjokh2a7pgji8njd8.apps.googleusercontent.com"
-	redirectURI  string = "http://localhost:8080/auth/callback"
-	clientSecret string = "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"
-)
+// const (
+// 	clientID     string = "8217850452-8cdtv7q9adb2hl3mjokh2a7pgji8njd8.apps.googleusercontent.com"
+// 	redirectURI  string = "http://localhost:8080/auth/callback"
+// 	clientSecret string = "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"
+// )
+
+// var (
+// 	CLIENT_ID     string =
+// 	REDIRECT_URI  string =
+// 	CLIENT_SECRET string =
+// )
 
 var googleOauthConfig = &oauth2.Config{
-	ClientID:     clientID,
-	ClientSecret: clientSecret,
-	RedirectURL:  redirectURI,
+	ClientID:     viper.GetString("CLIENT_ID"),
+	ClientSecret: viper.GetString("CLIENT_SECRET"),
+	RedirectURL:  viper.GetString("REDIRECT_URI"),
 	Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
 	Endpoint: oauth2.Endpoint{
 		AuthURL:  "https://accounts.google.com/o/oauth2/v2/auth",

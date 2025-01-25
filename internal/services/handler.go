@@ -12,11 +12,13 @@ import (
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
+	"github.com/spf13/viper"
 	"gorm.io/gorm"
 )
 
 var (
-	TOKEN = os.Getenv("SECRET_TOKEN")
+	TOKEN      = os.Getenv("SECRET_TOKEN")
+	auth_token = viper.GetString("AUTH_TOKEN")
 )
 
 type Srvs_Handler struct {
@@ -60,7 +62,7 @@ func (h *Srvs_Handler) CreateService(rw http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	cookie, err := r.Cookie("auth_token")
+	cookie, err := r.Cookie(auth_token)
 
 	if err != nil {
 		http.Error(rw, "No token provided", http.StatusUnauthorized)
@@ -115,10 +117,25 @@ func (h *Srvs_Handler) CreateService(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode("Servicio creado correctamente")
 }
 
-// get all services handler
-func (h *Srvs_Handler) GetAllServices(rw http.ResponseWriter, r *http.Request) {
+// Servicios para mostrar al cliente
+func (h *Srvs_Handler) GetServices(rw http.ResponseWriter, r *http.Request) {
 
-	services, err := h.Srvs_Service.GetServices(h.Ctx)
+	limit := chi.URLParam(r, "limit")
+	offset := chi.URLParam(r, "offset")
+
+	parsedLimit, err := strconv.Atoi(limit)
+	if err != nil {
+		http.Error(rw, "Error parseando parametro", http.StatusBadRequest)
+		return
+	}
+
+	parsedOffset, err := strconv.Atoi(offset)
+	if err != nil {
+		http.Error(rw, "Error parseando parametro", http.StatusBadRequest)
+		return
+	}
+
+	services, err := h.Srvs_Service.GetServices(h.Ctx, parsedLimit, parsedOffset)
 
 	if err != nil {
 		http.Error(rw, "Algo salio mal al intentar obtener los servicios", http.StatusBadRequest)
@@ -129,6 +146,51 @@ func (h *Srvs_Handler) GetAllServices(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(services)
+}
+
+func (h *Srvs_Handler) GetBarberServices(rw http.ResponseWriter, r *http.Request) {
+	limit := chi.URLParam(r, "limit")
+	offset := chi.URLParam(r, "offset")
+	parsedLimit, err := strconv.Atoi(limit)
+	if err != nil {
+		http.Error(rw, "Error parseando parametro", http.StatusBadRequest)
+		return
+	}
+
+	parsedOffset, err := strconv.Atoi(offset)
+	if err != nil {
+		http.Error(rw, "Error parseando parametro", http.StatusBadRequest)
+		return
+	}
+
+	cookie, err := r.Cookie(auth_token)
+
+	if err != nil {
+		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		return
+	}
+	// Validar el token
+	tokenString := cookie.Value
+	token, err := jwt.VerfiyToken(tokenString)
+
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	if !token.Is_barber {
+		http.Error(rw, "Usuario no autorizado", http.StatusUnauthorized)
+		return
+	}
+	service, err := h.Srvs_Service.GetBarberServices(h.Ctx, parsedLimit, parsedOffset, int(token.ID))
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// si todo bien, devolves el servicio creado
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(service)
 }
 
 func (h *Srvs_Handler) UpdateServices(rw http.ResponseWriter, r *http.Request) {
@@ -201,22 +263,6 @@ func (h *Srvs_Handler) UpdateServices(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode("Servicio correctamente actualizado")
-}
-
-// Get Available barbers list
-func (h *Srvs_Handler) GetBarberList(rw http.ResponseWriter, r *http.Request) {
-
-	barberList, err := h.Srvs_Service.GetBarberList(h.Ctx)
-
-	if err != nil {
-		log.Println("Error al obtener la lista de barberos", err.Error())
-		http.Error(rw, "Error al intentar obtener la lista de barberos", http.StatusBadRequest)
-		return
-	}
-
-	rw.Header().Set("Content-type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(barberList)
 }
 
 // Delete service by ID

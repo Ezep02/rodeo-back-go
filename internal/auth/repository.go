@@ -35,23 +35,14 @@ func (r *AuthRepository) RegisterUser(ctx context.Context, user *User) (*User, e
 	}, nil
 }
 
-func (r *AuthRepository) LoginUser(ctx context.Context, user *LogUserReq) (*User, error) {
+func (r *AuthRepository) SearchUserByEmail(ctx context.Context, email string) (*User, error) {
+	var user *User
 
-	var loggedUser User
-
-	result := r.Connection.WithContext(ctx).Where("email = ?", user.Email).First(&loggedUser)
+	result := r.Connection.WithContext(ctx).Where("email = ?", email).Find(&user)
 
 	if result.Error != nil {
 		return nil, result.Error
 	}
 
-	return &User{
-		Model:        loggedUser.Model,
-		Name:         loggedUser.Name,
-		Surname:      loggedUser.Surname,
-		Email:        loggedUser.Email,
-		Phone_number: loggedUser.Phone_number,
-		Is_admin:     loggedUser.Is_admin,
-		Is_barber:    loggedUser.Is_barber,
-	}, nil
+	return user, nil
 }

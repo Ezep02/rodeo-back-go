@@ -14,8 +14,8 @@ type User struct {
 }
 
 type LogUserReq struct {
-	Password string `gorm:"type:varchar(70);not null" json:"password"`
-	Email    string `gorm:"type:varchar(255);not null;unique" json:"email"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
 // Inicio de sesion con google

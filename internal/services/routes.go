@@ -18,11 +18,11 @@ func ServicesRouter(r chi.Router, db *gorm.DB) {
 
 	r.Route("/services", func(r chi.Router) {
 		r.Post("/new", srv_handler.CreateService)
-		r.Get("/all", srv_handler.GetAllServices)
+		r.Get("/{limit}/{offset}", srv_handler.GetServices)
+		r.Get("/barber/{limit}/{offset}", srv_handler.GetBarberServices)
 		r.Put("/update/{id}", srv_handler.UpdateServices)
-		r.HandleFunc("/notification-update", HandleConnection)
-		r.Get("/barber", srv_handler.GetBarberList)
 		r.Delete("/{id}", srv_handler.DeleteServiceByID)
+		r.HandleFunc("/notification-update", HandleConnection)
 	})
 
 }

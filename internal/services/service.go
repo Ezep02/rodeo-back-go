@@ -16,16 +16,16 @@ func (s *Srv_Service) CreateService(ctx context.Context, service *Service) (*Ser
 	return s.Srv_Repository.CreateNewService(ctx, service)
 }
 
-func (s *Srv_Service) GetServices(ctx context.Context) (*[]Service, error) {
-	return s.Srv_Repository.GetAllServices(ctx)
+func (s *Srv_Service) GetServices(ctx context.Context, limit int, offset int) (*[]Service, error) {
+	return s.Srv_Repository.GetServices(ctx, limit, offset)
+}
+
+func (s *Srv_Service) GetBarberServices(ctx context.Context, limit int, offset int, barberID int) (*[]Service, error) {
+	return s.Srv_Repository.GetBarberServices(ctx, limit, offset, barberID)
 }
 
 func (s *Srv_Service) UpdateService(ctx context.Context, service *Service, id string) (*Service, error) {
 	return s.Srv_Repository.UpdateServiceByID(ctx, service, id)
-}
-
-func (s *Srv_Service) GetBarberList(ctx context.Context) (*[]Users, error) {
-	return s.Srv_Repository.GetBarberList(ctx)
 }
 
 func (s *Srv_Service) DeleteServiceByID(ctx context.Context, serviceID int) error {

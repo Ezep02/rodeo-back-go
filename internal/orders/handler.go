@@ -10,10 +10,12 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
+	"github.com/spf13/viper"
 )
 
 // var link string = "https://api.mercadopago.com"
@@ -30,8 +32,9 @@ func NewOrderHandler(orders_srv *OrderService) *OrderHandler {
 	}
 }
 
-const (
-	mp_access_token = "APP_USR-196506190136225-122418-9c6e8e77138259dafabfc5c0f443d21a-1432087693"
+var (
+	mp_access_token = viper.GetString("MP_ACCESS_TOKEN")
+	auth_token      = viper.GetString("AUTH_TOKEN")
 )
 
 func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Request) {
@@ -40,15 +43,13 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 
 	if err := json.NewDecoder(r.Body).Decode(&newOrder); err != nil {
 		http.Error(rw, "No se pudo parsear correctamente el cuerpo de la peticion", http.StatusBadRequest)
-		log.Printf("[Error] %s", err.Error())
 		return
 	}
 
 	defer r.Body.Close()
 
 	// Si el pago es aceptado, se crea la orden
-	mp_access_token := "APP_USR-196506190136225-092022-41af146cb6426644ccd360b92edc7ef6-1432087693"
-	cookie, err := r.Cookie("auth_token")
+	cookie, err := r.Cookie(auth_token)
 
 	if err != nil {
 		http.Error(rw, "No token provided", http.StatusUnauthorized)
@@ -59,6 +60,7 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 	token, err := jwt.VerfiyToken(tokenString)
 	if err != nil {
 		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
+		return
 	}
 
 	request := Request{
@@ -81,14 +83,13 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 			},
 		},
 		Metadata: Metadata{
-			Service_duration: newOrder.Service_duration,
-			UserID:           token.ID,
-			Barber_id:        newOrder.Barber_id,
-			Created_by_id:    newOrder.Created_by_id,
-			Date:             newOrder.Date,
-			Weak_day:         newOrder.Weak_day,
-			Schedule:         newOrder.Schedule,
-			Shift_id:         newOrder.Shift_id,
+			Service_duration:    newOrder.Service_duration,
+			UserID:              token.ID,
+			Barber_id:           newOrder.Barber_id,
+			Created_by_id:       newOrder.Created_by_id,
+			Schedule_start_time: newOrder.Schedule_start_time,
+			Schedule_day_date:   newOrder.Schedule_day_date,
+			Shift_id:            newOrder.Shift_id,
 		},
 		Payer: Payer{
 			Email:   token.Email,
@@ -104,16 +105,16 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 			Installments:           12,
 			DefaultPaymentMethodID: "account_money",
 		},
-		NotificationURL:    "https://479a-181-16-122-41.ngrok-free.app/order/webhook",
+		NotificationURL:    "https://3bfe-181-16-120-185.ngrok-free.app/order/webhook",
 		Expires:            true,
-		ExpirationDateFrom: "2024-01-01T12:00:00.000-04:00",
-		ExpirationDateTo:   "2024-12-31T12:00:00.000-04:00",
+		ExpirationDateFrom: func() *time.Time { now := time.Now(); return &now }(),
+		ExpirationDateTo:   func(t time.Time) *time.Time { t = t.Add(30 * 24 * time.Hour); return &t }(*newOrder.Schedule_day_date),
 	}
 
 	// Serializa el objeto request a JSON
 	jsonRequest, err := json.Marshal(request)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		http.Error(rw, "Error parseando los datos", http.StatusInternalServerError)
 		return
 	}
 
@@ -123,6 +124,7 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
@@ -135,10 +137,10 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 	resp, err := client.Do(req)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 	defer resp.Body.Close()
-
 	// Leer la respuesta
 	var responseBody map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&responseBody); err != nil {
@@ -148,6 +150,7 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 
 	// Responder con el cuerpo de la respuesta
 	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(responseBody)
 }
 
@@ -167,7 +170,6 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Acceder al campo "data.id"
 	data, ok := bodyData["data"].(map[string]interface{})
 	if !ok {
 		http.Error(rw, "Error: 'data' field is missing or invalid", http.StatusBadRequest)
@@ -187,9 +189,6 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Token de acceso para la API de Mercado Pago
-	accessToken := "APP_USR-196506190136225-092022-41af146cb6426644ccd360b92edc7ef6-1432087693"
-
 	// URL de la API de pagos, reemplazando :id con el ID real
 	url := fmt.Sprintf("https://api.mercadopago.com/v1/payments/%d", id)
 
@@ -202,13 +201,14 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 
 	// Establecer las cabeceras necesarias
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Authorization", "Bearer "+mp_access_token)
 
 	// Enviar la solicitud
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		log.Println("aqui ocurre", err.Error())
 		return
 	}
 	defer resp.Body.Close()
@@ -227,24 +227,23 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	newOrder, err := orh.ord_srv.CreateNewOrder(orh.ctx, &Order{
-		Title:            payment.AdditionalInfo.Items[0].Title,
-		Price:            payment.AdditionalInfo.Items[0].UnitPrice,
-		Service_duration: payment.Metadata.Service_duration,
-		User_id:          int(payment.Metadata.UserID),
-		Service_id:       payment.AdditionalInfo.Items[0].ID,
-		Payment_id:       payment.ID,
-		Payer_name:       payment.AdditionalInfo.Payer.FirstName,
-		Payer_surname:    payment.AdditionalInfo.Payer.LastName,
-		Email:            payment.PayerInfo.Email,
-		Mp_order_id:      int64(payment.ID),
-		Date_approved:    payment.DateApproved,
-		Mp_status:        payment.Status,
-		Barber_id:        payment.Metadata.Barber_id,
-		Date:             payment.Metadata.Date,
-		Created_by_id:    payment.Metadata.Created_by_id,
-		Weak_day:         payment.Metadata.Weak_day,
-		Schedule:         payment.Metadata.Schedule,
-		Shift_id:         payment.Metadata.Shift_id,
+		Title:               payment.AdditionalInfo.Items[0].Title,
+		Price:               payment.AdditionalInfo.Items[0].UnitPrice,
+		Service_duration:    payment.Metadata.Service_duration,
+		User_id:             int(payment.Metadata.UserID),
+		Service_id:          payment.AdditionalInfo.Items[0].ID,
+		Payment_id:          payment.ID,
+		Payer_name:          payment.AdditionalInfo.Payer.FirstName,
+		Payer_surname:       payment.AdditionalInfo.Payer.LastName,
+		Email:               payment.PayerInfo.Email,
+		Mp_order_id:         int64(payment.ID),
+		Date_approved:       payment.DateApproved,
+		Mp_status:           payment.Status,
+		Barber_id:           payment.Metadata.Barber_id,
+		Schedule_day_date:   payment.Metadata.Schedule_day_date,
+		Created_by_id:       payment.Metadata.Created_by_id,
+		Schedule_start_time: payment.Metadata.Schedule_start_time,
+		Shift_id:            payment.Metadata.Shift_id,
 	})
 
 	if err != nil {
@@ -264,6 +263,7 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 	err = sendMessageToPeer(websocket.TextMessage, msgBytes)
 	if err != nil {
 		log.Println("Error al enviar mensaje al cliente:", err.Error())
+		return
 	}
 
 	// Respuesta exitosa
@@ -275,7 +275,7 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 func (orh *OrderHandler) Success(rw http.ResponseWriter, r *http.Request) {
 
 	// Validar el token
-	cookie, err := r.Cookie("auth_token")
+	cookie, err := r.Cookie(auth_token)
 	if err != nil {
 		http.Error(rw, "No token provided", http.StatusUnauthorized)
 		return
@@ -314,7 +314,7 @@ func (orh *OrderHandler) Pending(w http.ResponseWriter, r *http.Request) {
 func (orh *OrderHandler) GetOrders(rw http.ResponseWriter, r *http.Request) {
 
 	// Validar el token
-	cookie, err := r.Cookie("auth_token")
+	cookie, err := r.Cookie(auth_token)
 	if err != nil {
 		http.Error(rw, "No token provided", http.StatusUnauthorized)
 		return
@@ -325,10 +325,12 @@ func (orh *OrderHandler) GetOrders(rw http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
+		return
 	}
 
 	if !token.Is_admin {
 		http.Error(rw, "Usuario no autorizado", http.StatusUnauthorized)
+		return
 	}
 
 	lmt := chi.URLParam(r, "limit")
@@ -404,7 +406,7 @@ func (orh *OrderHandler) Refound(rw http.ResponseWriter, r *http.Request) {
 func (orh *OrderHandler) GetPendingOrder(rw http.ResponseWriter, r *http.Request) {
 
 	// Validar el token
-	cookie, err := r.Cookie("auth_token")
+	cookie, err := r.Cookie(auth_token)
 	if err != nil {
 		http.Error(rw, "No token provided", http.StatusUnauthorized)
 		return
@@ -448,7 +450,7 @@ func (orh *OrderHandler) GetOrderHistorial(rw http.ResponseWriter, r *http.Reque
 	}
 
 	// Validar el token
-	cookie, err := r.Cookie("auth_token")
+	cookie, err := r.Cookie(auth_token)
 	if err != nil {
 		http.Error(rw, "No token provided", http.StatusUnauthorized)
 		return
@@ -476,11 +478,10 @@ func (orh *OrderHandler) GetOrderHistorial(rw http.ResponseWriter, r *http.Reque
 // WEBSOCKET
 // Peer estructura para manejar una conexión peer-to-peer
 type Peer struct {
-	connection *websocket.Conn // Conexión WebSocket activa
-	mu         sync.Mutex      // Mutex para concurrencia en la conexión
+	connection []*websocket.Conn
+	mu         sync.Mutex
 }
 
-// Crear una instancia global del peer
 var peer Peer
 
 // Configuración del upgrader de WebSocket
@@ -490,7 +491,7 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-// HandleConnection gestiona una conexión WebSocket P2P
+// HandleConnection gestiona conexión WebSocket
 func HandleConnection(rw http.ResponseWriter, r *http.Request) {
 	// Actualizar a WebSocket
 	ws, err := upgrader.Upgrade(rw, r, nil)
@@ -502,48 +503,67 @@ func HandleConnection(rw http.ResponseWriter, r *http.Request) {
 
 	// Registrar la conexión como la conexión activa
 	peer.mu.Lock()
-	peer.connection = ws
+	peer.connection = append(peer.connection, ws)
 	peer.mu.Unlock()
 
-	log.Println("Nueva conexión P2P establecida")
+	log.Println("[ORDERS] Nueva conexión establecida")
 
 	// Leer mensajes del cliente y reenviar directamente al peer
 	for {
 		messageType, msg, err := ws.ReadMessage()
 		if err != nil {
+			log.Println("Error leyendo mensaje:", err.Error())
 			break
 		}
 
 		// Reenviar el mensaje al peer
 		err = sendMessageToPeer(messageType, msg)
 		if err != nil {
+			log.Println("Error enviando datos actualizados:", err.Error())
 			break
 		}
 	}
 
 	// Al cerrar, eliminar la conexión activa
-	peer.mu.Lock()
-	peer.connection = nil
-	peer.mu.Unlock()
-	log.Println("Conexión P2P cerrada")
+	removeConnection(ws)
+	log.Println("[ORDERS] Conexión cerrada")
 }
 
-// sendMessageToPeer envía un mensaje al peer conectado
+// removeConnection elimina una conexiones cerradas
+func removeConnection(conn *websocket.Conn) {
+	peer.mu.Lock()
+	defer peer.mu.Unlock()
+
+	for i, c := range peer.connection {
+		if c == conn {
+			peer.connection = append(peer.connection[:i], peer.connection[i+1:]...)
+			break
+		}
+	}
+}
+
+// sendUpdatedData envía mediante ws
 func sendMessageToPeer(messageType int, msg []byte) error {
 	peer.mu.Lock()
 	defer peer.mu.Unlock()
 
-	if peer.connection == nil {
-		log.Println("No hay peer conectado para recibir el mensaje")
+	if len(peer.connection) == 0 {
+		log.Println("No hay peers conectados para recibir el mensaje schedules")
 		return nil
 	}
 
-	// Enviar el mensaje
-	err := peer.connection.WriteMessage(messageType, msg)
-	if err != nil {
-		log.Println("Error al enviar mensaje al peer:", err.Error())
-		return err
+	var activeConnections []*websocket.Conn
+	for _, conn := range peer.connection {
+		err := conn.WriteMessage(messageType, msg)
+		if err != nil {
+			log.Println("Error al enviar mensaje al peer:", err.Error())
+			conn.Close() // Cerrar la conexión fallida
+			continue     // Omitir esta conexión en la lista activa
+		}
+		activeConnections = append(activeConnections, conn)
 	}
 
+	// Actualizar la lista de conexiones activas
+	peer.connection = activeConnections
 	return nil
 }

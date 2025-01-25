@@ -17,30 +17,29 @@ func NewOrderService(sch_repo *repository.SchedulesRepository) *ScheduleService 
 	}
 }
 
-func (sch_s *ScheduleService) GetSchedules(ctx context.Context, id int) (*[]models.ScheduleResponse, error) {
-	return sch_s.Sch_repo.GetSchedules(ctx, id)
+func (sch_s *ScheduleService) CreateBarberSchedules(ctx context.Context, schedules *[]models.Schedule) (*[]models.ScheduleResponse, error) {
+	return sch_s.Sch_repo.CreateNewSchedules(ctx, schedules)
 }
 
-func (sch_s *ScheduleService) CreateNewSchedulService(ctx context.Context, schedul *[]models.ShiftRequest, barberID int, barberName string) (*[]models.ScheduleResponse, error) {
-	return sch_s.Sch_repo.CreateNewSchedul(ctx, schedul, barberID, barberName)
+func (sch_s *ScheduleService) DeleteSchedules(ctx context.Context, id []int) error {
+	return sch_s.Sch_repo.DeleteSchedules(ctx, id)
 }
 
-func (sch_s *ScheduleService) CreateNewShift(ctx context.Context, shift *[]models.Shift) (*[]models.Shift, error) {
-	return sch_s.Sch_repo.CreateNewShift(ctx, shift)
+func (sch_s *ScheduleService) GetAvailableSchedules(ctx context.Context, limit int, offset int) (*[]models.Schedule, error) {
+	return sch_s.Sch_repo.GetAvailableSchedules(ctx, limit, offset)
 }
 
-func (sch_s *ScheduleService) DeleteShifts(ctx context.Context, ID_array []int) error {
-	return sch_s.Sch_repo.DeleteShifts(ctx, ID_array)
+func (sch_s *ScheduleService) GetBarberSchedules(ctx context.Context, id int, limit int, offset int) (*[]models.Schedule, error) {
+	return sch_s.Sch_repo.GetSchedulesList(ctx, id, limit, offset)
+}
+func (sch_s *ScheduleService) GetScheduleByID(ctx context.Context, id int) (*models.Schedule, error) {
+	return sch_s.Sch_repo.GetScheduleByID(ctx, id)
 }
 
-func (sch_s *ScheduleService) UpdateShiftList(ctx context.Context, data *[]models.Shift) (*[]models.Shift, error) {
-	return sch_s.Sch_repo.UpdateShift(ctx, data)
+func (sch_s *ScheduleService) UpdateShiftAvailability(ctx context.Context, id int) error {
+	return sch_s.Sch_repo.UpdateShiftAvailability(ctx, id)
 }
 
-func (sch_s *ScheduleService) UpdateShiftByID(ctx context.Context, shift_id int) (*models.Shift, error) {
-	return sch_s.Sch_repo.UpdateShiftByID(ctx, shift_id)
-}
-
-func (sch_s *ScheduleService) UpdateScheduleList(ctx context.Context, barberID int, data *[]models.Schedule) (*[]models.Schedule, error) {
-	return sch_s.Sch_repo.UpdateSchedules(ctx, barberID, data)
+func (sch_s *ScheduleService) GetTotaBarberCuts(ctx context.Context, barberID int) (*[]models.CutsQuantity, error) {
+	return sch_s.Sch_repo.GetCutsQuantity(ctx, barberID)
 }

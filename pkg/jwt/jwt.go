@@ -26,7 +26,7 @@ type VerifyTokenRes struct {
 	Surname      string `json:"surname"`
 	Phone_number string `json:"phone_number"`
 	Is_barber    bool   `json:"is_barber"`
-} // lo que responde el claim del toke
+}
 
 var TokenKey = []byte("mytokenapikey")
 
@@ -54,7 +54,7 @@ func GenerateToken(user_id uint, isAdmin bool, name string, email string, surnam
 	}
 	return tokenString, nil
 
-} // token generation
+}
 
 func ValidateToken(signedString string) error {
 
@@ -81,11 +81,9 @@ func ValidateToken(signedString string) error {
 	return nil
 }
 
-// Function to verify JWT tokens
-
 func VerfiyToken(tokenString string) (*VerifyTokenRes, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Asegúrate de que el método de firma sea el esperado
+		// Asegura que la firma sea la esperada
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
@@ -111,10 +109,10 @@ func VerfiyToken(tokenString string) (*VerifyTokenRes, error) {
 		}
 
 		user := &VerifyTokenRes{
-			ID:           uint(id),                  // Convertir de float64 a uint
-			Name:         claims["name"].(string),   // Asume que el claim "name" existe
-			Email:        claims["email"].(string),  // Asume que el claim "email" existe
-			Is_admin:     claims["is_admin"].(bool), // Asume que el claim "is_admin" existe
+			ID:           uint(id),
+			Name:         claims["name"].(string),
+			Email:        claims["email"].(string),
+			Is_admin:     claims["is_admin"].(bool),
 			Surname:      claims["surname"].(string),
 			Phone_number: claims["phone_number"].(string),
 			Is_barber:    claims["is_barber"].(bool),

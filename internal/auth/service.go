@@ -17,6 +17,6 @@ func (s *AuthService) RegisterUserServ(ctx context.Context, user *User) (*User, 
 	return s.AuthRepo.RegisterUser(ctx, user)
 }
 
-func (s *AuthService) LoginUserServ(ctx context.Context, user *LogUserReq) (*User, error) {
-	return s.AuthRepo.LoginUser(ctx, user)
+func (s *AuthService) SearchUserByEmail(ctx context.Context, email string) (*User, error) {
+	return s.AuthRepo.SearchUserByEmail(ctx, email)
 }
