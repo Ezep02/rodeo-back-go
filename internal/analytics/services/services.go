@@ -41,3 +41,11 @@ func (an_srv *AnalyticsServices) GetExpensesHistorialSrv(ctx context.Context, li
 func (an_srv *AnalyticsServices) GetTotalExpenses(ctx context.Context) (*[]models.Expense, error) {
 	return an_srv.An_repo.GetTotalExpenses(ctx)
 }
+
+func (an_srv *AnalyticsServices) UpdateExpenseSrv(ctx context.Context, exp *models.Expenses) (*models.Expenses, error) {
+	return an_srv.An_repo.UpdateExpense(ctx, exp)
+}
+
+func (an_srv *AnalyticsServices) DeleteExpense(ctx context.Context, id int) error {
+	return an_srv.An_repo.DeleteExpense(ctx, id)
+}

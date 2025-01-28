@@ -80,7 +80,7 @@ func (an_r *AnalyticsRepository) NewExpense(ctx context.Context, exp *models.Exp
 func (an_r *AnalyticsRepository) GetExpensesHistorial(ctx context.Context, limit int, offset int) (*[]models.Expenses, error) {
 	var expensesList *[]models.Expenses
 
-	result := an_r.Connection.WithContext(ctx).Offset(offset).Limit(limit).Find(&expensesList)
+	result := an_r.Connection.WithContext(ctx).Offset(offset).Limit(limit).Order("created_at desc").Find(&expensesList)
 
 	if result.Error != nil {
 		return nil, result.Error
@@ -89,12 +89,33 @@ func (an_r *AnalyticsRepository) GetExpensesHistorial(ctx context.Context, limit
 	return expensesList, nil
 }
 
+func (an_r *AnalyticsRepository) UpdateExpense(ctx context.Context, exp *models.Expenses) (*models.Expenses, error) {
+
+	result := an_r.Connection.WithContext(ctx).Model(&models.Expenses{}).Where("id = ?", exp.ID).Updates(exp)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return exp, nil
+}
+
+func (an_r *AnalyticsRepository) DeleteExpense(ctx context.Context, id int) error {
+
+	result := an_r.Connection.WithContext(ctx).Delete(&models.Expenses{}, id)
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}
+
 func (an_r *AnalyticsRepository) GetTotalExpenses(ctx context.Context) (*[]models.Expense, error) {
 	var totalExpenses *[]models.Expense
 
 	currentYear := time.Now().Year()
 
-	// Realiza la sumatoria del campo amount para el año actual
 	query := `
 	SELECT
 		STR_TO_DATE(DATE_FORMAT(created_at, '%Y-%m-01'), '%Y-%m-%d') AS month_date,

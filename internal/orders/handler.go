@@ -33,9 +33,22 @@ func NewOrderHandler(orders_srv *OrderService) *OrderHandler {
 }
 
 var (
-	mp_access_token = viper.GetString("MP_ACCESS_TOKEN")
-	auth_token      = viper.GetString("AUTH_TOKEN")
+	mp_access_token string
+	auth_token      string
 )
+
+func init() {
+	viper.SetConfigFile(".env")
+	viper.SetConfigType("env")
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("Error al leer el archivo .env: %v", err)
+	}
+
+	auth_token = viper.GetString("AUTH_TOKEN")
+	mp_access_token = viper.GetString("MP_ACCESS_TOKEN")
+}
 
 func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Request) {
 
@@ -105,7 +118,7 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 			Installments:           12,
 			DefaultPaymentMethodID: "account_money",
 		},
-		NotificationURL:    "https://3bfe-181-16-120-185.ngrok-free.app/order/webhook",
+		NotificationURL:    "https://f92f-181-16-120-185.ngrok-free.app/order/webhook",
 		Expires:            true,
 		ExpirationDateFrom: func() *time.Time { now := time.Now(); return &now }(),
 		ExpirationDateTo:   func(t time.Time) *time.Time { t = t.Add(30 * 24 * time.Hour); return &t }(*newOrder.Schedule_day_date),

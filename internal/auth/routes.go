@@ -17,8 +17,8 @@ func RegisterAuthRoutes(r chi.Router, db *gorm.DB) {
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/register", authHandler.RegisterUserHandler)
 		r.Post("/login", authHandler.LoginUserHandler)
-		r.HandleFunc("/google", GoogleAuth)        // Inicia el flujo OAuth2
-		r.HandleFunc("/callback", CallbackHandler) // Recibe el código de autorización
+		r.HandleFunc("/google", GoogleAuth)
+		r.HandleFunc("/callback", CallbackHandler)
 		r.Get("/verify-token", authHandler.VerifyTokenHandler)
 		r.Get("/logout", authHandler.LogoutSession)
 	})

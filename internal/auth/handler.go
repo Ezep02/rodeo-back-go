@@ -29,12 +29,45 @@ func NewAuthHandler(authServ *AuthService) *AuthHandler {
 }
 
 var (
-	auth_token = viper.GetString("AUTH_TOKEN")
+	clientID          string
+	redirectURI       string
+	clientSecret      string
+	auth_token        string
+	googleOauthConfig *oauth2.Config
 )
 
-// CLIENT_ID
-// REDIRECT_URL
-// CLIENT_SECRET
+func init() {
+	viper.SetConfigFile(".env")
+	viper.SetConfigType("env")
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("Error al leer el archivo .env: %v", err)
+	}
+
+	auth_token = viper.GetString("AUTH_TOKEN")
+	clientID = viper.GetString("CLIENT_ID")
+	clientSecret = viper.GetString("CLIENT_SECRET")
+	redirectURI = viper.GetString("REDIRECT_URI")
+
+	if clientID == "" || clientSecret == "" || redirectURI == "" {
+		log.Fatalf("Error: Las variables de entorno requeridas no están configuradas")
+	}
+
+	googleOauthConfig = &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  redirectURI,
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://accounts.google.com/o/oauth2/v2/auth",
+			TokenURL: "https://oauth2.googleapis.com/token",
+		},
+	}
+}
 
 func (h *AuthHandler) RegisterUserHandler(rw http.ResponseWriter, r *http.Request) {
 
@@ -190,7 +223,7 @@ func (h *AuthHandler) VerifyTokenHandler(rw http.ResponseWriter, r *http.Request
 func (h *AuthHandler) LogoutSession(w http.ResponseWriter, r *http.Request) {
 
 	c := http.Cookie{
-		Name:     "auth_token",
+		Name:     auth_token,
 		MaxAge:   -1,
 		Path:     "/",  // Asegúrate de que el Path coincida con el de la cookie original
 		HttpOnly: true, // Evita que la cookie sea accesible desde JavaScript
@@ -201,30 +234,8 @@ func (h *AuthHandler) LogoutSession(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// const (
-// 	clientID     string = "8217850452-8cdtv7q9adb2hl3mjokh2a7pgji8njd8.apps.googleusercontent.com"
-// 	redirectURI  string = "http://localhost:8080/auth/callback"
-// 	clientSecret string = "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"
-// )
-
-// var (
-// 	CLIENT_ID     string =
-// 	REDIRECT_URI  string =
-// 	CLIENT_SECRET string =
-// )
-
-var googleOauthConfig = &oauth2.Config{
-	ClientID:     viper.GetString("CLIENT_ID"),
-	ClientSecret: viper.GetString("CLIENT_SECRET"),
-	RedirectURL:  viper.GetString("REDIRECT_URI"),
-	Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
-	Endpoint: oauth2.Endpoint{
-		AuthURL:  "https://accounts.google.com/o/oauth2/v2/auth",
-		TokenURL: "https://oauth2.googleapis.com/token",
-	},
-}
-
 func GoogleAuth(rw http.ResponseWriter, r *http.Request) {
+
 	// Generar una URL para redirigir al usuario a Google para autenticación
 	authURL := googleOauthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	http.Redirect(rw, r, authURL, http.StatusTemporaryRedirect)
@@ -265,13 +276,13 @@ func CallbackHandler(rw http.ResponseWriter, r *http.Request) {
 
 	// Establece la cookie con el token
 	http.SetCookie(rw, &http.Cookie{
-		Name:     "auth_token",
+		Name:     auth_token,
 		Value:    tokenString,
-		Expires:  time.Now().Add(24 * time.Hour),
-		Domain:   "", // Usa el dominio actual por defecto
+		Expires:  time.Now().Add(24 * time.Hour * 30),
+		Domain:   "",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   false, // Cambiar a true si se usa HTTPS
+		Secure:   false,
 		Path:     "/",
 	})
 	// redireccionar al dashboard

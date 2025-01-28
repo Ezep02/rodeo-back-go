@@ -268,3 +268,99 @@ func (an_handler *AnalyticsHandler) GetTotalExpensesCount(rw http.ResponseWriter
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(totalexp)
 }
+
+func (an_handler *AnalyticsHandler) UpdateExpense(rw http.ResponseWriter, r *http.Request) {
+
+	cookie, err := r.Cookie(auth_token)
+
+	if err != nil {
+		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		return
+	}
+	// Validar el token
+	tokenString := cookie.Value
+	token, err := jwt.VerfiyToken(tokenString)
+
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	if !token.Is_admin {
+		http.Error(rw, "Usuario no autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(rw, "Couldn't parse request body", http.StatusBadRequest)
+		return
+	}
+
+	defer r.Body.Close()
+
+	var expenseReq *models.Expenses
+
+	if err := json.Unmarshal(b, &expenseReq); err != nil {
+		http.Error(rw, "Error al deserializar el cuerpo de la solicitud", http.StatusBadRequest)
+		return
+	}
+
+	updatedExp, err := an_handler.An_Srv.UpdateExpenseSrv(an_handler.Ctx, &models.Expenses{
+		Model:           expenseReq.Model,
+		Created_by_name: expenseReq.Created_by_name,
+		Admin_id:        int(token.ID),
+		Title:           expenseReq.Title,
+		Description:     expenseReq.Description,
+		Amount:          expenseReq.Amount,
+	})
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(updatedExp)
+}
+
+func (an_handler *AnalyticsHandler) DeleteExpense(rw http.ResponseWriter, r *http.Request) {
+
+	cookie, err := r.Cookie(auth_token)
+
+	if err != nil {
+		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		return
+	}
+	// Validar el token
+	tokenString := cookie.Value
+	token, err := jwt.VerfiyToken(tokenString)
+
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	if !token.Is_admin {
+		http.Error(rw, "Usuario no autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	deleteID := chi.URLParam(r, "id")
+
+	parsedID, err := strconv.Atoi(deleteID)
+
+	if err != nil {
+		http.Error(rw, "Error parseando el id", http.StatusUnauthorized)
+		return
+	}
+
+	if err := an_handler.An_Srv.DeleteExpense(an_handler.Ctx, parsedID); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rw.Header().Set("Content-type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode("Se elimino correctamente")
+}

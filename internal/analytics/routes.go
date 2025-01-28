@@ -28,5 +28,7 @@ func AnalyticsRoutes(r chi.Router, db *gorm.DB) {
 		r.Post("/new", analyticsHandler.NewExpense)
 		r.Get("/historial/{limit}/{offset}", analyticsHandler.GetExpensesList)
 		r.Get("/total", analyticsHandler.GetTotalExpensesCount)
+		r.Put("/", analyticsHandler.UpdateExpense)
+		r.Delete("/{id}", analyticsHandler.DeleteExpense)
 	})
 }
