@@ -2,18 +2,24 @@ package services
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
+	"time"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type ServiceRepository struct {
-	Connection *gorm.DB
+	Connection      *gorm.DB
+	RedisConnection *redis.Client
 }
 
-func NewServiceRepository(DATABASE *gorm.DB) *ServiceRepository {
+func NewServiceRepository(DATABASE *gorm.DB, REDIS *redis.Client) *ServiceRepository {
 	return &ServiceRepository{
-		Connection: DATABASE,
+		Connection:      DATABASE,
+		RedisConnection: REDIS,
 	}
 }
 
@@ -36,9 +42,20 @@ func (r *ServiceRepository) CreateNewService(ctx context.Context, service *Servi
 	}, nil
 }
 
-// para usuarios
+// recupera los servicios activos para el usuario
 func (r *ServiceRepository) GetServices(ctx context.Context, limit int, offset int) (*[]Service, error) {
 	var services *[]Service
+
+	servicesCacheKey := fmt.Sprintf("services:limit-%d:offset-%d", limit, offset)
+
+	// recuperar servicios desde cache
+	servicesInCache, cacheErr := r.RedisConnection.Get(ctx, servicesCacheKey).Result()
+
+	// Datos en cache, recuperar
+	if cacheErr == nil {
+		json.Unmarshal([]byte(servicesInCache), &services)
+		return services, nil
+	}
 
 	result := r.Connection.WithContext(ctx).Order("created_at desc").Offset(offset).Limit(limit).Find(&services)
 
@@ -46,9 +63,14 @@ func (r *ServiceRepository) GetServices(ctx context.Context, limit int, offset i
 		return nil, result.Error
 	}
 
+	// Hacer caching de datos
+	data, _ := json.Marshal(services)
+	r.RedisConnection.Set(ctx, servicesCacheKey, data, 20*time.Minute)
+
 	return services, nil
 }
 
+// devuelve una lista de servicios activos y creados por el barbero
 func (r *ServiceRepository) GetBarberServices(ctx context.Context, limit int, offset int, barberID int) (*[]Service, error) {
 	var services *[]Service
 
@@ -69,8 +91,6 @@ func (r *ServiceRepository) UpdateServiceByID(ctx context.Context, service *Serv
 		log.Println("[UPDATE SHIFT] Error al iniciar la transacción")
 		return nil, tx.Error
 	}
-
-	log.Println("service:", service)
 
 	// Construir los datos a actualizar
 	updatedService := &Service{

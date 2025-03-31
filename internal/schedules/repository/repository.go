@@ -47,7 +47,6 @@ func (sc *SchedulesRepository) CreateNewSchedules(ctx context.Context, schedules
 
 func (sc *SchedulesRepository) DeleteSchedules(ctx context.Context, ids []int) error {
 	cnn := sc.Connection.WithContext(ctx)
-	log.Println("id set", ids)
 
 	if result := cnn.Where("id IN ?", ids).Delete(&models.Schedule{}); result.Error != nil {
 		log.Println("Error eliminando schedules:", result.Error)
@@ -108,29 +107,4 @@ func (sc *SchedulesRepository) UpdateShiftAvailability(ctx context.Context, id i
 	}
 
 	return nil
-}
-
-func (sc *SchedulesRepository) GetCutsQuantity(ctx context.Context, barberID int) (*[]models.CutsQuantity, error) {
-	var quantityResponse []models.CutsQuantity
-
-	result := sc.Connection.WithContext(ctx).Raw(`
-        SELECT 
-            barber_id, 
-            DATE_FORMAT(schedule_day_date, '%Y-%m-01') AS schedule_day_date,
-            COUNT(*) AS quantity
-        FROM 
-            schedules
-        WHERE 
-            available = false AND barber_id = ?
-        GROUP BY 
-            barber_id, DATE_FORMAT(schedule_day_date, '%Y-%m-01')
-        ORDER BY 
-            schedule_day_date
-    `, barberID).Scan(&quantityResponse)
-
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
-	return &quantityResponse, nil
 }

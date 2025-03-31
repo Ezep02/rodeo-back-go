@@ -20,3 +20,7 @@ func (s *AuthService) RegisterUserServ(ctx context.Context, user *User) (*User, 
 func (s *AuthService) SearchUserByEmail(ctx context.Context, email string) (*User, error) {
 	return s.AuthRepo.SearchUserByEmail(ctx, email)
 }
+
+func (s *AuthService) UpdateUserPasswordServ(ctx context.Context, userID int, newPassword string) error {
+	return s.AuthRepo.UpdateUserPassword(ctx, userID, newPassword)
+}

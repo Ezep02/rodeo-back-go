@@ -29,3 +29,13 @@ type GoogleUserInfo struct {
 	Locale        string `json:"locale"`
 	VerifiedEmail bool   `json:"verified_email"`
 }
+
+// Reset de contraseña
+type UserEmail struct {
+	Email string `json:"email"`
+}
+
+type UserResetPassowrdReq struct {
+	New_password string `json:"new_password"`
+	Token        string `json:"token"`
+}

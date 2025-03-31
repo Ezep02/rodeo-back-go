@@ -28,10 +28,14 @@ type VerifyTokenRes struct {
 	Is_barber    bool   `json:"is_barber"`
 }
 
+type JWTResetPassowrdClaim struct {
+	Email string `json:"email"`
+	jwt.StandardClaims
+}
+
 var TokenKey = []byte("mytokenapikey")
 
-func GenerateToken(user_id uint, isAdmin bool, name string, email string, surname string, phone_number string, isBarber bool) (string, error) {
-	expirationTime := time.Now().Add(24 * time.Hour) // Token expira en 24 horas
+func GenerateToken(user_id uint, isAdmin bool, name string, email string, surname string, phone_number string, isBarber bool, expirationTime time.Time) (string, error) {
 
 	claim := JWTClaim{
 		ID:           user_id,
@@ -43,7 +47,6 @@ func GenerateToken(user_id uint, isAdmin bool, name string, email string, surnam
 		Is_barber:    isBarber,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(), // Hora de expiración en formato Unix
-
 		},
 	}
 
@@ -61,7 +64,7 @@ func ValidateToken(signedString string) error {
 	token, err := jwt.ParseWithClaims(
 		signedString,
 		&JWTClaim{},
-		func(t *jwt.Token) (interface{}, error) {
+		func(t *jwt.Token) (any, error) {
 			return TokenKey, nil
 		},
 	)
@@ -82,7 +85,7 @@ func ValidateToken(signedString string) error {
 }
 
 func VerfiyToken(tokenString string) (*VerifyTokenRes, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		// Asegura que la firma sea la esperada
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")

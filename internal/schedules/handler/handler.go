@@ -140,6 +140,11 @@ func (sch_h *ScheduleHandler) GetAvailableSchedulesHandler(rw http.ResponseWrite
 
 func (sch *ScheduleHandler) BarberSchedulesHandler(rw http.ResponseWriter, r *http.Request) {
 
+	var (
+		schedulesToAdd   []models.Schedule
+		schedulesRequest models.ScheduleRequest
+	)
+
 	// Leer el cuerpo de la solicitud
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -147,8 +152,6 @@ func (sch *ScheduleHandler) BarberSchedulesHandler(rw http.ResponseWriter, r *ht
 		return
 	}
 	defer r.Body.Close()
-
-	var schedulesRequest models.ScheduleRequest
 
 	if err := json.Unmarshal(b, &schedulesRequest); err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
@@ -175,7 +178,6 @@ func (sch *ScheduleHandler) BarberSchedulesHandler(rw http.ResponseWriter, r *ht
 	}
 
 	// iterar sobre Schedule_add
-	var schedulesToAdd []models.Schedule
 
 	for _, schedule := range schedulesRequest.Schedule_add {
 
@@ -297,38 +299,6 @@ func (sch *ScheduleHandler) UpdateShiftStatus(rw http.ResponseWriter, r *http.Re
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(updatedShift)
-}
-
-func (sch *ScheduleHandler) GetBarberTotalCuts(rw http.ResponseWriter, r *http.Request) {
-
-	cookie, err := r.Cookie(auth_token)
-
-	if err != nil {
-		http.Error(rw, "No token provided", http.StatusUnauthorized)
-		return
-	}
-	// Validar el token
-	tokenString := cookie.Value
-	token, err := jwt.VerfiyToken(tokenString)
-	if err != nil {
-		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
-		return
-	}
-
-	if !token.Is_barber {
-		http.Error(rw, "Usuario no autorizado", http.StatusUnauthorized)
-		return
-	}
-
-	totalQuantity, err := sch.Sch_serv.GetTotaBarberCuts(sch.Ctx, int(token.ID))
-	if err != nil {
-		http.Error(rw, fmt.Sprintf("Error al recuperar el total de cortes %v", err.Error()), http.StatusUnauthorized)
-		return
-	}
-
-	rw.Header().Add("Content-type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(totalQuantity)
 }
 
 // HandleConnection gestiona una conexión WebSocket

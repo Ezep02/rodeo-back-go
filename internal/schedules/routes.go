@@ -23,8 +23,6 @@ func SchedulesRoutes(r chi.Router, db *gorm.DB) {
 		r.Get("/{limit}/{offset}", sch_Handler.GetBarberSchedulesHandler)
 		r.Get("/{limit}/{offset}", sch_Handler.GetAvailableSchedulesHandler)
 		r.Put("/shift/{id}", sch_Handler.UpdateShiftStatus)
-		r.Get("/total-cuts", sch_Handler.GetBarberTotalCuts)
 		r.HandleFunc("/updates", handler.HandleConnection)
-
 	})
 }

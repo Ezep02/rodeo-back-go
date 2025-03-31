@@ -21,5 +21,7 @@ func RegisterAuthRoutes(r chi.Router, db *gorm.DB) {
 		r.HandleFunc("/callback", CallbackHandler)
 		r.Get("/verify-token", authHandler.VerifyTokenHandler)
 		r.Get("/logout", authHandler.LogoutSession)
+		r.Post("/send-email", authHandler.SendResetUserPasswordEmailHandler)
+		r.Post("/reset-password", authHandler.ResetUserPassword)
 	})
 }

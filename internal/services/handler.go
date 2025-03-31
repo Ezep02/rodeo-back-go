@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 
@@ -17,7 +16,6 @@ import (
 )
 
 var (
-	TOKEN      = os.Getenv("SECRET_TOKEN")
 	auth_token = viper.GetString("AUTH_TOKEN")
 )
 

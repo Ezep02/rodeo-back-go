@@ -14,6 +14,7 @@ import (
 	"github.com/ezep02/rodeo/pkg/db"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 )
 
@@ -27,10 +28,14 @@ func main() {
 		log.Fatalf("Error al leer el archivo .env: %v", err)
 	}
 
-	DB_PASSWORD := viper.GetString("DB_PASSWORD")
-	DB_NAME := viper.GetString("DB_NAME")
+	dbUser := viper.GetString("DB_USER")
+	dbPassword := viper.GetString("DB_PASSWORD")
+	dbName := viper.GetString("DB_NAME")
+	// dbHost := viper.GetString("DB_HOST")
+	dbPort := viper.GetString("DB_PORT")
 
-	cnn, err := db.DB_Connection(fmt.Sprintf("root:%s@tcp(127.0.0.1:3306)/%s?charset=utf8mb4&parseTime=True&loc=Local", DB_PASSWORD, DB_NAME))
+	cnn, err := db.DB_Connection(fmt.Sprintf("%s:%s@tcp(127.0.0.1:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", dbUser, dbPassword, dbPort, dbName))
+
 	if err != nil {
 		log.Fatalf("Error al conectar con la base de datos: %v", err)
 	}
@@ -47,16 +52,24 @@ func main() {
 		MaxAge:           300,
 	}))
 
+	// Config Redis
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	// Routers
 	auth.RegisterAuthRoutes(r, cnn)
-	services.ServicesRouter(r, cnn)
+	services.ServicesRouter(r, cnn, redisClient)
 	orders.OrderRoutes(r, cnn)
 	schedules.SchedulesRoutes(r, cnn)
-	analytics.AnalyticsRoutes(r, cnn)
+	analytics.AnalyticsRoutes(r, cnn, redisClient)
 
-	//Crear y configurar el servidor HTTP
+	// Crear y configurar el servidor HTTP
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         ":8080",
+		Addr:         ":9090",
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}

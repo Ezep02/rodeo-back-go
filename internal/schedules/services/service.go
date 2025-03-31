@@ -39,7 +39,3 @@ func (sch_s *ScheduleService) GetScheduleByID(ctx context.Context, id int) (*mod
 func (sch_s *ScheduleService) UpdateShiftAvailability(ctx context.Context, id int) error {
 	return sch_s.Sch_repo.UpdateShiftAvailability(ctx, id)
 }
-
-func (sch_s *ScheduleService) GetTotaBarberCuts(ctx context.Context, barberID int) (*[]models.CutsQuantity, error) {
-	return sch_s.Sch_repo.GetCutsQuantity(ctx, barberID)
-}
