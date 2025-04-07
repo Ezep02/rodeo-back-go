@@ -5,12 +5,13 @@ import (
 	"github.com/ezep02/rodeo/internal/orders/repository"
 	"github.com/ezep02/rodeo/internal/orders/services"
 	"github.com/go-chi/chi/v5"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
-func OrderRoutes(r chi.Router, db *gorm.DB) {
+func OrderRoutes(r chi.Router, db *gorm.DB, redis *redis.Client) {
 	// Iniciar OrderRepository
-	order_repo := repository.NewOrderRepository(db)
+	order_repo := repository.NewOrderRepository(db, redis)
 	// Iniciar OrderService
 	order_srv := services.NewOrderService(order_repo)
 	// Inicializar OrderHandler con el servicio
@@ -21,10 +22,12 @@ func OrderRoutes(r chi.Router, db *gorm.DB) {
 		r.Post("/new", orderHandler.CreateOrderHandler)
 		r.Post("/webhook", orderHandler.WebHook)
 		r.Get("/pending/{limit}/{offset}", orderHandler.GetBarberPendingOrdersHandler)
-		r.Get("/success", orderHandler.Success)
-		// r.Get("/pending", orderHandler.GetPendingOrder)
-		r.Post("/refound/{id}/{amount}", orderHandler.Refound)
-		r.Get("/historial/{limit}/{offset}", orderHandler.GetOrderHistorial)
 		r.HandleFunc("/notification", handler.HandleConnection)
 	})
+
+	r.Route("/order/customer", func(r chi.Router) {
+		r.Get("/", orderHandler.CustomerPendingOrderHandler)
+		r.Post("/success", orderHandler.GetSuccessPaymentHandler)
+	})
+
 }

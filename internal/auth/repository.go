@@ -52,11 +52,11 @@ func (r *AuthRepository) SearchUserByEmail(ctx context.Context, email string) (*
 func (r *AuthRepository) UpdateUserPassword(ctx context.Context, userID int, newPassword string) error {
 
 	// Actualizar la contraseña en la base de datos
-	err := r.Connection.WithContext(ctx).Raw(`
-		UPDATE users SET password = ? WHERE id = ?
-	`, newPassword, userID).Error
-
-	if err != nil {
+	if err := r.Connection.WithContext(ctx).Exec(`
+		UPDATE users 
+		SET password = ? 
+		WHERE id = ?
+	`, newPassword, userID).Error; err != nil {
 		return fmt.Errorf("error al actualizar la contraseña: %v", err)
 	}
 

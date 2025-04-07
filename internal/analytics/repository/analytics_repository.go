@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/ezep02/rodeo/internal/analytics/models"
@@ -138,14 +139,13 @@ func (r *Analytics_repository) GetMonthlyAppointmentsAndAvgComparedToLastMonth(c
 		return nil
 	})
 
-	// cachear la respuesta
+	//cachear la respuesta
 	data, _ := json.Marshal(
 		models.MonthlyAppointmens{
 			Total_month_appointments: total_month_appointments,
 			Avg_compared_last_month:  avg_compared_last_month})
 
 	r.RedisConnection.Set(ctx, redisCacheKey, data, 20*time.Minute)
-
 	return total_month_appointments, avg_compared_last_month, nil
 }
 
@@ -278,6 +278,7 @@ func (r *Analytics_repository) GetMonthlyPopularServices(ctx context.Context) ([
 		return nil, err
 	}
 
+	log.Println("monthlyPopularServices", monthlyPopularServices)
 	// Volver a cachear datos
 	data, _ := json.Marshal(monthlyPopularServices)
 	r.RedisConnection.Set(ctx, redisCacheKey, data, 20*time.Minute)

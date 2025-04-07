@@ -260,47 +260,6 @@ func (sch *ScheduleHandler) BarberSchedulesHandler(rw http.ResponseWriter, r *ht
 	json.NewEncoder(rw).Encode("Operacion exitosa")
 }
 
-func (sch *ScheduleHandler) UpdateShiftStatus(rw http.ResponseWriter, r *http.Request) {
-
-	idParam := chi.URLParam(r, "id")
-
-	parsedID, err := strconv.Atoi(idParam)
-	if err != nil {
-		http.Error(rw, "Error parseando el parametro id", http.StatusBadRequest)
-		return
-	}
-
-	if err := sch.Sch_serv.UpdateShiftAvailability(sch.Ctx, parsedID); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	updatedShift, err := sch.Sch_serv.GetScheduleByID(sch.Ctx, parsedID)
-
-	if err != nil {
-		http.Error(rw, "Error recuperando horario", http.StatusBadRequest)
-		return
-	}
-
-	// se convierte a binario el shift y es enviado mediante conexion ws
-	b, err := json.Marshal(updatedShift)
-	if err != nil {
-		log.Println("Convertion error to byte")
-		http.Error(rw, err.Error(), http.StatusConflict)
-		return
-	}
-
-	if err := sendUpdatedData(websocket.TextMessage, b); err != nil {
-		log.Println("Error al enviar mensaje al cliente:", err.Error())
-		http.Error(rw, "Error interno al intentar enviar los datos actualizados", http.StatusInternalServerError)
-		return
-	}
-
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(updatedShift)
-}
-
 // HandleConnection gestiona una conexión WebSocket
 func HandleConnection(rw http.ResponseWriter, r *http.Request) {
 	// Actualizar a WebSocket

@@ -17,18 +17,28 @@ func NewOrderService(ord_srv *repository.OrderRepository) *OrderService {
 	}
 }
 
-func (or_srv *OrderService) CreateNewOrder(ctx context.Context, order *models.Order) (*models.Order, error) {
-	return or_srv.OrderRepo.CreateNewOrder(ctx, order)
+func (s *OrderService) CreateNewOrder(ctx context.Context, order *models.Order) (*models.Order, error) {
+	return s.OrderRepo.CreatingNewOrder(ctx, order)
 }
 
-func (or_srv *OrderService) GetOrderService(ctx context.Context, barberID int, limit int, offset int) ([]models.BarberPendingOrder, error) {
-	return or_srv.OrderRepo.GetBarberPendingOrders(ctx, barberID, limit, offset)
+func (s *OrderService) GetOrderService(ctx context.Context, barberID int, limit int, offset int) ([]models.BarberPendingOrder, error) {
+	return s.OrderRepo.GetBarberPendingOrders(ctx, barberID, limit, offset)
 }
 
-func (or_srv *OrderService) GetOrderByUserID(ctx context.Context, userID int) (*models.Order, error) {
-	return or_srv.OrderRepo.GetOrderByUserID(ctx, userID)
+func (s *OrderService) GetOrderByUserID(ctx context.Context, userID int) (*models.Order, error) {
+	return s.OrderRepo.GetOrderByUserID(ctx, userID)
 }
 
-func (or_srv *OrderService) GetOrdersHistorial(ctx context.Context, userID int, limit int, offset int) (*[]models.Order, error) {
-	return or_srv.OrderRepo.GetOrdersHistorial(ctx, userID, limit, offset)
+// obtener ordenes pendientes del cliente
+func (s *OrderService) GetCustomerPendingOrder(ctx context.Context, userID int) ([]models.CustomerPendingOrder, error) {
+	return s.OrderRepo.GettingCustomerPendingOrders(ctx, userID)
+}
+
+// almacenar el token transitoriamente para realizar el pago
+func (s *OrderService) SetOrderToken(ctx context.Context, token string, order models.PendingOrderToken) error {
+	return s.OrderRepo.SavingOrderToken(ctx, token, order)
+}
+
+func (s *OrderService) GetOrderByToken(ctx context.Context, token string) (models.PendingOrderToken, error) {
+	return s.OrderRepo.SearchingOrderToken(ctx, token)
 }

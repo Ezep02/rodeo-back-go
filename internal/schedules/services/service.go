@@ -35,7 +35,3 @@ func (sch_s *ScheduleService) GetBarberSchedules(ctx context.Context, id int, li
 func (sch_s *ScheduleService) GetScheduleByID(ctx context.Context, id int) (*models.Schedule, error) {
 	return sch_s.Sch_repo.GetScheduleByID(ctx, id)
 }
-
-func (sch_s *ScheduleService) UpdateShiftAvailability(ctx context.Context, id int) error {
-	return sch_s.Sch_repo.UpdateShiftAvailability(ctx, id)
-}

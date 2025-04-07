@@ -46,7 +46,7 @@ func GenerateToken(user_id uint, isAdmin bool, name string, email string, surnam
 		Phone_number: phone_number,
 		Is_barber:    isBarber,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(), // Hora de expiración en formato Unix
+			ExpiresAt: expirationTime.Unix(),
 		},
 	}
 

@@ -22,7 +22,6 @@ func SchedulesRoutes(r chi.Router, db *gorm.DB) {
 		r.Post("/", sch_Handler.BarberSchedulesHandler) // Success, TODO: manejar la respuestas con un websocket
 		r.Get("/{limit}/{offset}", sch_Handler.GetBarberSchedulesHandler)
 		r.Get("/{limit}/{offset}", sch_Handler.GetAvailableSchedulesHandler)
-		r.Put("/shift/{id}", sch_Handler.UpdateShiftStatus)
 		r.HandleFunc("/updates", handler.HandleConnection)
 	})
 }

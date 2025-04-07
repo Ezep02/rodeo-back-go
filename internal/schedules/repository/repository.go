@@ -97,14 +97,3 @@ func (sc *SchedulesRepository) GetScheduleByID(ctx context.Context, id int) (*mo
 
 	return updatedShift, nil
 }
-
-func (sc *SchedulesRepository) UpdateShiftAvailability(ctx context.Context, id int) error {
-
-	if err := sc.Connection.WithContext(ctx).Model(&models.Schedule{}).Where("id = ?", id).Update("available", false); err != nil {
-		log.Println("Error updating schedule availability")
-		log.Printf("error %+v", err.Error)
-		return err.Error
-	}
-
-	return nil
-}

@@ -62,7 +62,7 @@ func main() {
 	// Routers
 	auth.RegisterAuthRoutes(r, cnn)
 	services.ServicesRouter(r, cnn, redisClient)
-	orders.OrderRoutes(r, cnn)
+	orders.OrderRoutes(r, cnn, redisClient)
 	schedules.SchedulesRoutes(r, cnn)
 	analytics.AnalyticsRoutes(r, cnn, redisClient)
 

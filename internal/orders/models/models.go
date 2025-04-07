@@ -95,36 +95,25 @@ type ServiceOrder struct {
 
 type Order struct {
 	*gorm.Model
-	Title               string
-	Price               string
-	User_id             int
-	Service_id          string
-	Payment_id          int
-	Payer_name          string
-	Payer_surname       string
-	Email               string
-	Payer_phone         string
-	Mp_order_id         int64
-	Date_approved       string
-	Mp_status           string
-	Mp_status_detail    string
-	Barber_id           int
-	Created_by_id       int
-	Shift_id            int
-	Schedule_day_date   *time.Time
-	Service_duration    int
-	Schedule_start_time string
-}
-
-type BarberPendingOrder struct {
-	*gorm.Model
 	Title               string     `json:"title"`
+	Price               string     `json:"price"`
+	User_id             int        `json:"user_id"`
+	Service_id          string     `json:"service_id"`
+	Payment_id          int        `json:"payment_id"`
 	Payer_name          string     `json:"payer_name"`
 	Payer_surname       string     `json:"payer_surname"`
+	Email               string     `json:"email"`
+	Payer_phone         string     `json:"payer_phone"`
+	Mp_order_id         int64      `json:"mp_order_id"`
+	Date_approved       string     `json:"date_approved"`
+	Mp_status           string     `json:"mp_status"`
+	Mp_status_detail    string     `json:"mp_status_datail"`
 	Barber_id           int        `json:"barber_id"`
+	Created_by_id       int        `json:"created_by_id"`
+	Shift_id            int        `json:"shift_id"`
 	Schedule_day_date   *time.Time `json:"schedule_day_date"`
+	Service_duration    int        `json:"service_duration"`
 	Schedule_start_time string     `json:"schedule_start_time"`
-	Mp_status           string     `json:"status"`
 }
 
 type PaymentResponse struct {
@@ -252,33 +241,33 @@ type PaymentMethod struct {
 }
 
 type TransactionDetails struct {
-	AcquirerReference        interface{} `json:"acquirer_reference"`
-	ExternalResourceURL      interface{} `json:"external_resource_url"`
-	FinancialInstitution     interface{} `json:"financial_institution"`
-	InstallmentAmount        float64     `json:"installment_amount"`
-	NetReceivedAmount        float64     `json:"net_received_amount"`
-	OverpaidAmount           float64     `json:"overpaid_amount"`
-	PayableDeferralPeriod    interface{} `json:"payable_deferral_period"`
-	PaymentMethodReferenceID interface{} `json:"payment_method_reference_id"`
-	TotalPaidAmount          float64     `json:"total_paid_amount"`
+	AcquirerReference        any     `json:"acquirer_reference"`
+	ExternalResourceURL      any     `json:"external_resource_url"`
+	FinancialInstitution     any     `json:"financial_institution"`
+	InstallmentAmount        float64 `json:"installment_amount"`
+	NetReceivedAmount        float64 `json:"net_received_amount"`
+	OverpaidAmount           float64 `json:"overpaid_amount"`
+	PayableDeferralPeriod    any     `json:"payable_deferral_period"`
+	PaymentMethodReferenceID any     `json:"payment_method_reference_id"`
+	TotalPaidAmount          float64 `json:"total_paid_amount"`
 }
 
 // REFOUND
 // Define una estructura que coincida con la respuesta
 type RefundResponse struct {
-	ID                   int         `json:"id"`
-	PaymentID            int         `json:"payment_id"`
-	Amount               float64     `json:"amount"`
-	Metadata             []struct{}  `json:"metadata"`
-	Source               []Source    `json:"source"`
-	DateCreated          string      `json:"date_created"`
-	UniqueSequenceNumber interface{} `json:"unique_sequence_number"`
-	RefundMode           string      `json:"refund_mode"`
-	AdjustmentAmount     float64     `json:"adjustment_amount"`
-	Status               int         `json:"status"`
-	Reason               interface{} `json:"reason"`
-	Label                []struct{}  `json:"label"`
-	PartitionDetails     []struct{}  `json:"partition_details"`
+	ID                   int        `json:"id"`
+	PaymentID            int        `json:"payment_id"`
+	Amount               float64    `json:"amount"`
+	Metadata             []struct{} `json:"metadata"`
+	Source               []Source   `json:"source"`
+	DateCreated          string     `json:"date_created"`
+	UniqueSequenceNumber any        `json:"unique_sequence_number"`
+	RefundMode           string     `json:"refund_mode"`
+	AdjustmentAmount     float64    `json:"adjustment_amount"`
+	Status               int        `json:"status"`
+	Reason               any        `json:"reason"`
+	Label                []struct{} `json:"label"`
+	PartitionDetails     []struct{} `json:"partition_details"`
 }
 
 type Source struct {
