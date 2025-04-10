@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -62,7 +63,17 @@ func (or *OrderRepository) CreatingNewOrder(ctx context.Context, order *models.O
 
 func (r *OrderRepository) GetBarberPendingOrders(ctx context.Context, barberID int, limit int, offset int) ([]models.BarberPendingOrder, error) {
 
-	var barberPendingOrders []models.BarberPendingOrder
+	var (
+		barberPendingOrders []models.BarberPendingOrder
+	)
+
+	reidCacheKey := fmt.Sprintf("barber_pending_orders:barber_id-%d", barberID)
+
+	if ordersInCache, cacheErr := r.RedisConnection.Get(ctx, reidCacheKey).Result(); ordersInCache != "" && cacheErr == nil {
+		// devolver los datos en cache
+		json.Unmarshal([]byte(ordersInCache), &barberPendingOrders)
+		return barberPendingOrders, nil
+	}
 
 	// extraer las ordenes penditenes, cuyo dia se despues del dia actual
 	err := r.Connection.WithContext(ctx).Raw(`
@@ -97,19 +108,19 @@ func (r *OrderRepository) GetBarberPendingOrders(ctx context.Context, barberID i
 
 // obtener los turnos pendientes del cliente
 func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, userID int) ([]models.CustomerPendingOrder, error) {
-
 	var (
-		redisCacheKey        string = "CustomerPendingTurns"
 		customerPendingTurns []models.CustomerPendingOrder
 	)
 
-	// buscar en cache
-	if cachedPendingTurns, err := r.RedisConnection.Get(ctx, redisCacheKey).Result(); err == nil {
-		json.Unmarshal([]byte(cachedPendingTurns), &customerPendingTurns)
+	customerOrdersCacheKey := fmt.Sprintf("customer_order:id-%d", userID)
+
+	if cachedCustomerPendingOrders, cacheErr := r.RedisConnection.Get(ctx, customerOrdersCacheKey).Result(); cachedCustomerPendingOrders != "" && cacheErr == nil {
+		json.Unmarshal([]byte(cachedCustomerPendingOrders), &customerPendingTurns)
 		return customerPendingTurns, nil
 	}
 
-	err := r.Connection.WithContext(ctx).Raw(`
+	// No estaba en cache o cache inválida, ir a la DB
+	dbErr := r.Connection.WithContext(ctx).Raw(`
 		SELECT 
 			id,
 			title,
@@ -128,27 +139,15 @@ func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, user
 		LIMIT 5
 	`, userID).Scan(&customerPendingTurns).Error
 
-	println("No estaba, peticionar sql")
-
-	if err != nil {
-		return nil, err
+	if dbErr != nil {
+		return nil, dbErr
 	}
 
 	// cachear datos
-	data, _ := json.Marshal(customerPendingTurns)
-	r.RedisConnection.Set(ctx, redisCacheKey, data, 5*time.Minute)
-
-	return customerPendingTurns, nil
-}
-
-func (or *OrderRepository) GetOrderByUserID(ctx context.Context, userID int) (*models.Order, error) {
-
-	var order_response models.Order
-
-	result := or.Connection.WithContext(ctx).Last(&order_response)
-	if result.Error != nil {
-		return nil, result.Error
+	if data, _ := json.Marshal(customerPendingTurns); data != nil {
+		r.RedisConnection.Set(ctx, customerOrdersCacheKey, data, 5*time.Minute)
+		return customerPendingTurns, nil
 	}
 
-	return &order_response, nil
+	return customerPendingTurns, nil
 }

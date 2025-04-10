@@ -5,19 +5,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/ezep02/rodeo/internal/orders/models"
 	"github.com/ezep02/rodeo/internal/orders/services"
 	"github.com/ezep02/rodeo/internal/orders/utils"
+	"github.com/gorilla/websocket"
 
 	"github.com/ezep02/rodeo/pkg/jwt"
 
-	"github.com/gorilla/websocket"
 	"github.com/spf13/viper"
 )
 
@@ -122,15 +120,12 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 	var success_url string = fmt.Sprintf("http://localhost:5173/payment/success/token=%s", orderToken)
 
 	request := models.Request{
-		AutoReturn: "approved",
 		BackURLs: models.BackURLs{
 			Success: success_url,
 			Pending: "http://localhost:8080/payment/pending",
 			Failure: "http://localhost:8080/payment/failure",
 		},
-		StatementDescriptor: "TestStore",
-		BinaryMode:          false,
-		ExternalReference:   "IWD1238971",
+
 		Items: []models.Item{
 			{
 				ID:          newOrder.Service_id,
@@ -148,22 +143,17 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 			Schedule_start_time: newOrder.Schedule_start_time,
 			Schedule_day_date:   newOrder.Schedule_day_date,
 			Shift_id:            newOrder.Shift_id,
+			Email:               validatedToken.Email,
 		},
 		Payer: models.Payer{
-			Email:   validatedToken.Email,
 			Name:    validatedToken.Name,
 			Surname: validatedToken.Surname,
 			Phone: models.Phone{
 				Number: validatedToken.Phone_number,
 			},
 		},
-		PaymentMethods: models.PaymentMethods{
-			ExcludedPaymentTypes:   []string{},
-			ExcludedPaymentMethods: []string{},
-			Installments:           12,
-			DefaultPaymentMethodID: "account_money",
-		},
-		NotificationURL:    "https://f8ce-181-16-121-41.ngrok-free.app/order/webhook",
+
+		NotificationURL:    "https://885f-181-16-121-41.ngrok-free.app/order/webhook",
 		Expires:            true,
 		ExpirationDateFrom: func() *time.Time { now := time.Now(); return &now }(),
 		ExpirationDateTo:   func(t time.Time) *time.Time { t = t.Add(30 * 24 * time.Hour); return &t }(*newOrder.Schedule_day_date),
@@ -211,123 +201,134 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 	json.NewEncoder(rw).Encode(responseBody)
 }
 
-// WebHook maneja las solicitudes de webhook de Mercado Pago.
+func getMap(m map[string]any, key string) map[string]any {
+	val, ok := m[key].(map[string]any)
+	if !ok {
+		log.Printf("Campo '%s' no es un objeto", key)
+		return map[string]any{}
+	}
+	return val
+}
+
+func getSliceMap(m map[string]any, key string, index int) map[string]any {
+	slice, ok := m[key].([]any)
+	if !ok || len(slice) <= index {
+		log.Printf("Campo '%s' no es un slice válido", key)
+		return map[string]any{}
+	}
+	val, ok := slice[index].(map[string]any)
+	if !ok {
+		log.Printf("Elemento %d de '%s' no es un objeto", index, key)
+		return map[string]any{}
+	}
+	return val
+}
+
+func getString(m map[string]any, key string) string {
+	val, _ := m[key].(string)
+	return val
+}
+
+func getFloat(m map[string]any, key string) float64 {
+	val, _ := m[key].(float64)
+	return val
+}
+
 func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
-
-	var (
-		bodyData map[string]any
-		payment  models.PaymentResponse
-	)
-
-	// Leer el cuerpo de la solicitud
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(rw, "Error leyendo el cuerpo de la solicitud", http.StatusBadRequest)
+	var bodyPayment map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&bodyPayment); err != nil {
+		log.Println("Error decodificando el cuerpo del webhook:", err)
+		http.Error(rw, "JSON inválido", http.StatusBadRequest)
 		return
 	}
 
-	// Decodificar el cuerpo JSON en un mapa de interfaces
-	if err := json.Unmarshal(body, &bodyData); err != nil {
-		http.Error(rw, "Error decoding request body", http.StatusBadRequest)
-		return
-	}
-
-	data, ok := bodyData["data"].(map[string]any)
+	data, ok := bodyPayment["data"].(map[string]any)
 	if !ok {
-		http.Error(rw, "Error: 'data' field is missing or invalid", http.StatusBadRequest)
+		log.Println("Campo 'data' no encontrado o malformado")
+		http.Error(rw, "Campo 'data' inválido", http.StatusBadRequest)
 		return
 	}
 
-	idStr, ok := data["id"].(string)
-	if !ok {
-		http.Error(rw, "Error: 'id' field is missing or invalid", http.StatusBadRequest)
-		return
-	}
+	paymentID := fmt.Sprintf("%v", data["id"])
+	url := fmt.Sprintf("https://api.mercadopago.com/v1/payments/%s", paymentID)
 
-	// Convertir el ID de cadena a entero
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(rw, "Error: 'id' is not a valid integer", http.StatusBadRequest)
-		return
-	}
-
-	// URL de la API de pagos, reemplazando :id con el ID real
-	url := fmt.Sprintf("https://api.mercadopago.com/v1/payments/%d", id)
-
-	// Crear la solicitud HTTP GET
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		log.Println("Error creando solicitud GET:", err)
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Establecer las cabeceras necesarias
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+mp_access_token)
 
-	// Enviar la solicitud
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := (&http.Client{}).Do(req)
 	if err != nil {
+		log.Println("Error haciendo solicitud a MercadoPago:", err)
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
 
-	b, err := io.ReadAll(resp.Body)
-
-	if err != nil {
-		http.Error(rw, "Error leyendo el cuerpo de la solicitud", http.StatusBadRequest)
+	var root map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&root); err != nil {
+		log.Println("Error decodificando respuesta de MercadoPago:", err)
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Decodificar el cuerpo JSON en el objeto Payment
-	if err := json.Unmarshal(b, &payment); err != nil {
-		http.Error(rw, "Error decoding request body", http.StatusBadRequest)
+	additionalInfo := getMap(root, "additional_info")
+	metadata := getMap(root, "metadata")
+	payer := getMap(additionalInfo, "payer")
+	item := getSliceMap(additionalInfo, "items", 0)
+
+	price := int(getFloat(item, "unit_price"))
+	itemID := int(getFloat(item, "id"))
+	serviceID := fmt.Sprintf("%d", itemID)
+
+	scheduleDateStr := getString(metadata, "schedule_day_date")
+	scheduleDate, err := time.Parse(time.RFC3339, scheduleDateStr)
+	if err != nil {
+		log.Println("Error parseando fecha de turno:", err)
+		http.Error(rw, "Fecha inválida", http.StatusBadRequest)
 		return
 	}
 
 	newOrder, err := orh.ord_srv.CreateNewOrder(orh.ctx, &models.Order{
-		Title:               payment.AdditionalInfo.Items[0].Title,
-		Price:               payment.AdditionalInfo.Items[0].UnitPrice,
-		Service_duration:    payment.Metadata.Service_duration,
-		User_id:             int(payment.Metadata.UserID),
-		Service_id:          payment.AdditionalInfo.Items[0].ID,
-		Payment_id:          payment.ID,
-		Payer_name:          payment.AdditionalInfo.Payer.FirstName,
-		Payer_surname:       payment.AdditionalInfo.Payer.LastName,
-		Email:               payment.PayerInfo.Email,
-		Mp_order_id:         int64(payment.ID),
-		Date_approved:       payment.DateApproved,
-		Mp_status:           payment.Status,
-		Barber_id:           payment.Metadata.Barber_id,
-		Schedule_day_date:   payment.Metadata.Schedule_day_date,
-		Created_by_id:       payment.Metadata.Created_by_id,
-		Schedule_start_time: payment.Metadata.Schedule_start_time,
-		Shift_id:            payment.Metadata.Shift_id,
+		Title:               getString(item, "title"),
+		Price:               price,
+		Service_duration:    int(getFloat(metadata, "service_duration")),
+		User_id:             int(getFloat(metadata, "user_id")),
+		Schedule_start_time: getString(metadata, "schedule_start_time"),
+		Email:               getString(metadata, "email"),
+		Service_id:          serviceID,
+		Description:         getString(root, "description"),
+		Payer_name:          getString(payer, "first_name"),
+		Payer_surname:       getString(payer, "last_name"),
+		Date_approved:       getString(root, "date_approved"),
+		Mp_status:           getString(root, "status"),
+		Barber_id:           int(getFloat(metadata, "barber_id")),
+		Schedule_day_date:   &scheduleDate,
+		Created_by_id:       int(getFloat(metadata, "created_by_id")),
+		Shift_id:            int(getFloat(metadata, "shift_id")),
 	})
 
 	if err != nil {
-		http.Error(rw, "no se creo la orden", http.StatusBadRequest)
+		http.Error(rw, "No se creó la orden", http.StatusBadRequest)
 		return
 	}
 
-	// Convertir `newOrder` a bytes y enviar al cliente
 	msgBytes, err := json.Marshal(newOrder)
 	if err != nil {
-		log.Println("Error al serializar la orden:", err.Error())
-		http.Error(rw, "Error interno al procesar la orden", http.StatusInternalServerError)
+		log.Println("Error al serializar la orden:", err)
+		http.Error(rw, "Error al procesar la orden", http.StatusInternalServerError)
 		return
 	}
 
-	// Enviar el mensaje al cliente específico
-	err = sendMessageToPeer(websocket.TextMessage, msgBytes)
-	if err != nil {
-		log.Println("Error al enviar mensaje al cliente:", err.Error())
-		return
+	if err := sendMessageToPeer(websocket.TextMessage, msgBytes); err != nil {
+		log.Println("Error enviando mensaje al cliente:", err)
 	}
 
-	// Respuesta exitosa
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode("ok")

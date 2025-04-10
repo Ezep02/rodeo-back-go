@@ -25,10 +25,6 @@ func (s *OrderService) GetOrderService(ctx context.Context, barberID int, limit 
 	return s.OrderRepo.GetBarberPendingOrders(ctx, barberID, limit, offset)
 }
 
-func (s *OrderService) GetOrderByUserID(ctx context.Context, userID int) (*models.Order, error) {
-	return s.OrderRepo.GetOrderByUserID(ctx, userID)
-}
-
 // obtener ordenes pendientes del cliente
 func (s *OrderService) GetCustomerPendingOrder(ctx context.Context, userID int) ([]models.CustomerPendingOrder, error) {
 	return s.OrderRepo.GettingCustomerPendingOrders(ctx, userID)

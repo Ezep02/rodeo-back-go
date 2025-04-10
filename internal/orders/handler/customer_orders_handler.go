@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/ezep02/rodeo/pkg/jwt"
@@ -26,7 +25,6 @@ func (h *OrderHandler) CustomerPendingOrderHandler(rw http.ResponseWriter, r *ht
 	}
 
 	pendingOrders, err := h.ord_srv.GetCustomerPendingOrder(h.ctx, int(validatedToken.ID))
-	log.Println("[200 ORDERS]", pendingOrders)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
@@ -35,35 +33,6 @@ func (h *OrderHandler) CustomerPendingOrderHandler(rw http.ResponseWriter, r *ht
 	rw.Header().Set("Content-type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(pendingOrders)
-}
-
-// Obtener turno pendiente REFACTORIZAR
-func (orh *OrderHandler) GetPendingOrder(rw http.ResponseWriter, r *http.Request) {
-
-	// Validar el token
-	cookie, err := r.Cookie(auth_token)
-	if err != nil {
-		http.Error(rw, "No token provided", http.StatusUnauthorized)
-		return
-	}
-
-	tokenString := cookie.Value
-	token, err := jwt.VerfiyToken(tokenString)
-
-	if err != nil {
-		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
-	}
-
-	nextOrder, err := orh.ord_srv.GetOrderByUserID(orh.ctx, int(token.ID))
-	if err != nil {
-		log.Println("No fue posible recuperar la orden")
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(nextOrder)
 }
 
 func (h *OrderHandler) GetSuccessPaymentHandler(rw http.ResponseWriter, r *http.Request) {
@@ -90,4 +59,15 @@ func (h *OrderHandler) GetSuccessPaymentHandler(rw http.ResponseWriter, r *http.
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(order)
+}
+
+// Refaund
+func (h *OrderHandler) CreateOrderRefaund(rw http.ResponseWriter, r *http.Request) {
+
+	// obtener los datos del refaund
+
+	// -> crea el refound con los datos obtenidos
+
+	// hecha la peticion
+
 }
