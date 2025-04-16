@@ -27,13 +27,15 @@ func NewOrderRepository(cnn *gorm.DB, redis *redis.Client) *OrderRepository {
 
 func (or *OrderRepository) CreatingNewOrder(ctx context.Context, order *models.Order) (*models.Order, error) {
 
+	log.Println("ORDERS:\n", order)
+
 	// Create order and update schedule status as not available
 	or.Connection.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 
 		// Set in db a new order
 		tx.Transaction(func(order_tx *gorm.DB) error {
 
-			if order_err := order_tx.Create(order).Error; order_err != nil {
+			if order_err := order_tx.Model(models.Order{}).Create(order).Error; order_err != nil {
 				log.Println("[rolling back new order]")
 				order_tx.Rollback()
 				return order_err
@@ -50,6 +52,7 @@ func (or *OrderRepository) CreatingNewOrder(ctx context.Context, order *models.O
 				SET available = ?
 				WHERE id = ?
 			`, false, order.Shift_id).Error; upating_status_err != nil {
+
 				log.Println("[status updated]")
 				return nil
 			}
@@ -67,9 +70,9 @@ func (r *OrderRepository) GetBarberPendingOrders(ctx context.Context, barberID i
 		barberPendingOrders []models.BarberPendingOrder
 	)
 
-	reidCacheKey := fmt.Sprintf("barber_pending_orders:barber_id-%d", barberID)
+	redisCacheKey := fmt.Sprintf("barber_pending_orders:barber_id-%d", barberID)
 
-	if ordersInCache, cacheErr := r.RedisConnection.Get(ctx, reidCacheKey).Result(); ordersInCache != "" && cacheErr == nil {
+	if ordersInCache, cacheErr := r.RedisConnection.Get(ctx, redisCacheKey).Result(); ordersInCache != "" && cacheErr == nil {
 		// devolver los datos en cache
 		json.Unmarshal([]byte(ordersInCache), &barberPendingOrders)
 		return barberPendingOrders, nil
@@ -103,6 +106,12 @@ func (r *OrderRepository) GetBarberPendingOrders(ctx context.Context, barberID i
 		return nil, err
 	}
 
+	// cachear la informacion
+	if pendingOrderBytes, _ := json.Marshal(barberPendingOrders); pendingOrderBytes != nil {
+		r.RedisConnection.Set(ctx, redisCacheKey, pendingOrderBytes, time.Minute*5)
+		return barberPendingOrders, nil
+	}
+
 	return barberPendingOrders, nil
 }
 
@@ -114,10 +123,11 @@ func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, user
 
 	customerOrdersCacheKey := fmt.Sprintf("customer_order:id-%d", userID)
 
-	if cachedCustomerPendingOrders, cacheErr := r.RedisConnection.Get(ctx, customerOrdersCacheKey).Result(); cachedCustomerPendingOrders != "" && cacheErr == nil {
-		json.Unmarshal([]byte(cachedCustomerPendingOrders), &customerPendingTurns)
-		return customerPendingTurns, nil
-	}
+	// if cachedCustomerPendingOrders, cacheErr := r.RedisConnection.Get(ctx, customerOrdersCacheKey).Result(); cachedCustomerPendingOrders != "" && cacheErr == nil {
+	// 	json.Unmarshal([]byte(cachedCustomerPendingOrders), &customerPendingTurns)
+	// 	log.Println("[cache hit] customer pending orders")
+	// 	return customerPendingTurns, nil
+	// }
 
 	// No estaba en cache o cache inválida, ir a la DB
 	dbErr := r.Connection.WithContext(ctx).Raw(`
@@ -138,6 +148,8 @@ func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, user
 		ORDER BY schedule_day_date ASC, schedule_start_time ASC
 		LIMIT 5
 	`, userID).Scan(&customerPendingTurns).Error
+
+	log.Println("ORDERS:\n", customerPendingTurns)
 
 	if dbErr != nil {
 		return nil, dbErr

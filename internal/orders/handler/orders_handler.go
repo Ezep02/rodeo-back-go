@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ezep02/rodeo/internal/orders/helpers"
 	"github.com/ezep02/rodeo/internal/orders/models"
 	"github.com/ezep02/rodeo/internal/orders/services"
 	"github.com/ezep02/rodeo/internal/orders/utils"
@@ -136,14 +137,15 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 			},
 		},
 		Metadata: models.Metadata{
-			Service_duration:    newOrder.Service_duration,
 			UserID:              validatedToken.ID,
 			Barber_id:           newOrder.Barber_id,
+			Service_id:          newOrder.Service_id,
 			Created_by_id:       newOrder.Created_by_id,
-			Schedule_start_time: newOrder.Schedule_start_time,
-			Schedule_day_date:   newOrder.Schedule_day_date,
 			Shift_id:            newOrder.Shift_id,
 			Email:               validatedToken.Email,
+			Service_duration:    newOrder.Service_duration,
+			Schedule_start_time: newOrder.Schedule_start_time,
+			Schedule_day_date:   newOrder.Schedule_day_date,
 		},
 		Payer: models.Payer{
 			Name:    validatedToken.Name,
@@ -153,7 +155,7 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 			},
 		},
 
-		NotificationURL:    "https://885f-181-16-121-41.ngrok-free.app/order/webhook",
+		NotificationURL:    "https://af39-181-16-122-113.ngrok-free.app/order/webhook",
 		Expires:            true,
 		ExpirationDateFrom: func() *time.Time { now := time.Now(); return &now }(),
 		ExpirationDateTo:   func(t time.Time) *time.Time { t = t.Add(30 * 24 * time.Hour); return &t }(*newOrder.Schedule_day_date),
@@ -201,39 +203,6 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 	json.NewEncoder(rw).Encode(responseBody)
 }
 
-func getMap(m map[string]any, key string) map[string]any {
-	val, ok := m[key].(map[string]any)
-	if !ok {
-		log.Printf("Campo '%s' no es un objeto", key)
-		return map[string]any{}
-	}
-	return val
-}
-
-func getSliceMap(m map[string]any, key string, index int) map[string]any {
-	slice, ok := m[key].([]any)
-	if !ok || len(slice) <= index {
-		log.Printf("Campo '%s' no es un slice válido", key)
-		return map[string]any{}
-	}
-	val, ok := slice[index].(map[string]any)
-	if !ok {
-		log.Printf("Elemento %d de '%s' no es un objeto", index, key)
-		return map[string]any{}
-	}
-	return val
-}
-
-func getString(m map[string]any, key string) string {
-	val, _ := m[key].(string)
-	return val
-}
-
-func getFloat(m map[string]any, key string) float64 {
-	val, _ := m[key].(float64)
-	return val
-}
-
 func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 	var bodyPayment map[string]any
 	if err := json.NewDecoder(r.Body).Decode(&bodyPayment); err != nil {
@@ -244,7 +213,6 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 
 	data, ok := bodyPayment["data"].(map[string]any)
 	if !ok {
-		log.Println("Campo 'data' no encontrado o malformado")
 		http.Error(rw, "Campo 'data' inválido", http.StatusBadRequest)
 		return
 	}
@@ -277,41 +245,15 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	additionalInfo := getMap(root, "additional_info")
-	metadata := getMap(root, "metadata")
-	payer := getMap(additionalInfo, "payer")
-	item := getSliceMap(additionalInfo, "items", 0)
-
-	price := int(getFloat(item, "unit_price"))
-	itemID := int(getFloat(item, "id"))
-	serviceID := fmt.Sprintf("%d", itemID)
-
-	scheduleDateStr := getString(metadata, "schedule_day_date")
-	scheduleDate, err := time.Parse(time.RFC3339, scheduleDateStr)
+	order, err := helpers.BuildOrderFromWebhook(root)
+	log.Println("[order]:", order)
 	if err != nil {
-		log.Println("Error parseando fecha de turno:", err)
-		http.Error(rw, "Fecha inválida", http.StatusBadRequest)
+		log.Println("Error formateando respuesta de MercadoPago:", err)
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	newOrder, err := orh.ord_srv.CreateNewOrder(orh.ctx, &models.Order{
-		Title:               getString(item, "title"),
-		Price:               price,
-		Service_duration:    int(getFloat(metadata, "service_duration")),
-		User_id:             int(getFloat(metadata, "user_id")),
-		Schedule_start_time: getString(metadata, "schedule_start_time"),
-		Email:               getString(metadata, "email"),
-		Service_id:          serviceID,
-		Description:         getString(root, "description"),
-		Payer_name:          getString(payer, "first_name"),
-		Payer_surname:       getString(payer, "last_name"),
-		Date_approved:       getString(root, "date_approved"),
-		Mp_status:           getString(root, "status"),
-		Barber_id:           int(getFloat(metadata, "barber_id")),
-		Schedule_day_date:   &scheduleDate,
-		Created_by_id:       int(getFloat(metadata, "created_by_id")),
-		Shift_id:            int(getFloat(metadata, "shift_id")),
-	})
+	newOrder, err := orh.ord_srv.CreateNewOrder(orh.ctx, order)
 
 	if err != nil {
 		http.Error(rw, "No se creó la orden", http.StatusBadRequest)

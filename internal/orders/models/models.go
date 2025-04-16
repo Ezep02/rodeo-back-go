@@ -43,12 +43,13 @@ type Payer struct {
 type Metadata struct {
 	Service_duration    int        `json:"service_duration"`
 	UserID              uint       `json:"user_id"`
-	Barber_id           int        `json:"Barber_id"`
-	Created_by_id       int        `json:"Created_by_id"`
-	Schedule_start_time string     `json:"Schedule_start_time"`
-	Schedule_day_date   *time.Time `json:"Schedule_day_date"`
-	Shift_id            int        `json:"Shift_id"`
+	Barber_id           int        `json:"barber_id"`
+	Created_by_id       int        `json:"created_by_id"`
+	Schedule_start_time string     `json:"schedule_start_time"`
+	Schedule_day_date   *time.Time `json:"schedule_day_date"`
+	Shift_id            int        `json:"shift_id"`
 	Email               string     `json:"email"`
+	Service_id          int        `json:"service_id"`
 }
 
 type PaymentMethods struct {
@@ -93,7 +94,7 @@ type Order struct {
 	Title               string     `json:"title"`
 	Price               int        `json:"price"`
 	User_id             int        `json:"user_id"`
-	Service_id          string     `json:"service_id"`
+	Service_id          int        `json:"service_id"`
 	Payer_name          string     `json:"payer_name"`
 	Payer_surname       string     `json:"payer_surname"`
 	Description         string     `json:"description"`

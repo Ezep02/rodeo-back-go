@@ -1,4 +1,4 @@
-package services
+package handler
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/ezep02/rodeo/internal/services/models"
+	"github.com/ezep02/rodeo/internal/services/services"
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
@@ -20,7 +22,7 @@ var (
 )
 
 type Srvs_Handler struct {
-	Srvs_Service *Srv_Service
+	Srvs_Service *services.Srv_Service
 	Ctx          context.Context
 }
 
@@ -40,7 +42,7 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func NewServiceHandler(srv_service *Srv_Service) *Srvs_Handler {
+func NewServiceHandler(srv_service *services.Srv_Service) *Srvs_Handler {
 	return &Srvs_Handler{
 		Srvs_Service: srv_service,
 		Ctx:          context.Background(),
@@ -50,7 +52,7 @@ func NewServiceHandler(srv_service *Srv_Service) *Srvs_Handler {
 // create service handler
 func (h *Srvs_Handler) CreateService(rw http.ResponseWriter, r *http.Request) {
 
-	var srv ServiceRequest
+	var srv models.ServiceRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&srv); err != nil {
 		http.Error(rw, "No se pudo parsear correctamente el cuerpo de la peticion", http.StatusBadRequest)
@@ -76,13 +78,12 @@ func (h *Srvs_Handler) CreateService(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newSrvReq := Service{
+	newSrvReq := models.Service{
 		Title:            srv.Title,
 		Created_by_id:    token.ID,
 		Description:      srv.Description,
 		Price:            srv.Price,
 		Service_Duration: srv.Service_Duration,
-		Preview_url:      srv.Preview_url,
 	}
 
 	newSrv, err := h.Srvs_Service.CreateService(h.Ctx, &newSrvReq)
@@ -192,7 +193,7 @@ func (h *Srvs_Handler) GetBarberServices(rw http.ResponseWriter, r *http.Request
 }
 
 func (h *Srvs_Handler) UpdateServices(rw http.ResponseWriter, r *http.Request) {
-	var srv Service
+	var srv models.Service
 
 	if err := json.NewDecoder(r.Body).Decode(&srv); err != nil {
 		http.Error(rw, "No se pudo parsear correctamente el cuerpo de la peticion", http.StatusBadRequest)
@@ -225,7 +226,7 @@ func (h *Srvs_Handler) UpdateServices(rw http.ResponseWriter, r *http.Request) {
 
 	srv_id := chi.URLParam(r, "id")
 
-	values := Service{
+	values := models.Service{
 		Model: gorm.Model{
 			ID: srv.ID,
 		},
@@ -304,6 +305,21 @@ func (h *Srvs_Handler) DeleteServiceByID(rw http.ResponseWriter, r *http.Request
 	rw.Header().Set("Content-type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode("Eliminado correctamente")
+
+}
+
+// GetPopularServices obtiene los servicios populares
+func (h *Srvs_Handler) GetPopularServices(rw http.ResponseWriter, r *http.Request) {
+	services, err := h.Srvs_Service.GetPopularServices(h.Ctx)
+	if err != nil {
+		http.Error(rw, "Error al obtener los servicios populares", http.StatusBadRequest)
+		return
+	}
+	// si todo bien, devolves el servicio creado
+
+	rw.Header().Set("Content-type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(services)
 
 }
 

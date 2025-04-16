@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -13,10 +12,8 @@ import (
 
 	"github.com/ezep02/rodeo/internal/schedules/models"
 	"github.com/ezep02/rodeo/internal/schedules/services"
-	"github.com/ezep02/rodeo/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/spf13/viper"
-	"gorm.io/gorm"
 
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/gorilla/websocket"
@@ -184,17 +181,7 @@ func (sch *ScheduleHandler) BarberSchedulesHandler(rw http.ResponseWriter, r *ht
 		//
 		switch strings.ToUpper(schedule.Schedule_status) {
 		case "NEW":
-			id, err := utils.GenerateRandomID()
-			if err != nil {
-				// Manejo del error
-				fmt.Println("Error generando ID:", err)
-				return
-			}
-
 			scheduleToCreate := models.Schedule{
-				Model: &gorm.Model{
-					ID: id,
-				},
 				Created_by_name:   token.Name,
 				Barber_id:         int(token.ID),
 				Available:         schedule.Available,
@@ -275,7 +262,7 @@ func HandleConnection(rw http.ResponseWriter, r *http.Request) {
 	peer.connection = append(peer.connection, ws)
 	peer.mu.Unlock()
 
-	log.Println("[UPDATE SCHEDULES] Nueva conexión establecida")
+	log.Println("[UPDATE SCHEDULES] Nueva conexion establecida")
 
 	// Leer mensajes del cliente y reenviar directamente al peer
 	for {
@@ -293,7 +280,7 @@ func HandleConnection(rw http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Al cerrar, eliminar la conexión activa
+	// Al cerrar, eliminar la conexion activa
 	removeConnection(ws)
 	log.Println("[UPDATE SCHEDULES] Conexión cerrada")
 }
@@ -311,7 +298,7 @@ func removeConnection(conn *websocket.Conn) {
 	}
 }
 
-// sendUpdatedData envía datos de actualización a todos los peers conectados
+// sendUpdatedData envia datos de actualización a todos los peers conectados
 func sendUpdatedData(messageType int, msg []byte) error {
 	peer.mu.Lock()
 	defer peer.mu.Unlock()

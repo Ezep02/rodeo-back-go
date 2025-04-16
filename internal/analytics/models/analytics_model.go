@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type MonthlyRevenue struct {
 	Total_month_revenue     float64 `json:"Total_month_revenue"`
