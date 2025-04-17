@@ -1,17 +1,16 @@
-package auth
+package handlers
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"net/smtp"
 	"strings"
 	"time"
 
+	"github.com/ezep02/rodeo/internal/auth/models"
+	"github.com/ezep02/rodeo/internal/auth/services"
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/ezep02/rodeo/utils"
 	"github.com/spf13/viper"
@@ -19,11 +18,11 @@ import (
 )
 
 type AuthHandler struct {
-	AuthServ *AuthService
+	AuthServ *services.AuthService
 	ctx      context.Context
 }
 
-func NewAuthHandler(authServ *AuthService) *AuthHandler {
+func NewAuthHandler(authServ *services.AuthService) *AuthHandler {
 	return &AuthHandler{
 		AuthServ: authServ,
 		ctx:      context.Background(),
@@ -81,7 +80,7 @@ func (h *AuthHandler) RegisterUserHandler(rw http.ResponseWriter, r *http.Reques
 	defer r.Body.Close()
 
 	// Deserializar el cuerpo en un objeto User
-	var user User
+	var user models.User
 	if err := json.Unmarshal(b, &user); err != nil {
 		http.Error(rw, "Error al deserializar el cuerpo de la solicitud", http.StatusBadRequest)
 		return
@@ -157,7 +156,7 @@ func (h *AuthHandler) LoginUserHandler(rw http.ResponseWriter, r *http.Request) 
 
 	defer r.Body.Close()
 
-	var loggedUserReq LogUserReq
+	var loggedUserReq models.LogUserReq
 
 	if err := json.Unmarshal(b, &loggedUserReq); err != nil {
 		http.Error(rw, "Error al deserializar el cuerpo de la solicitud", http.StatusBadRequest)
@@ -235,195 +234,10 @@ func (h *AuthHandler) LogoutSession(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func GoogleAuth(rw http.ResponseWriter, r *http.Request) {
-
-	// Generar una URL para redirigir al usuario a Google para autenticación
-	authURL := googleOauthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	http.Redirect(rw, r, authURL, http.StatusTemporaryRedirect)
-}
-
-func CallbackHandler(rw http.ResponseWriter, r *http.Request) {
-	// Leer el código de autorización del query string
-	code := r.URL.Query().Get("code")
-	if code == "" {
-		http.Error(rw, "Code not found", http.StatusBadRequest)
-		return
-	}
-
-	// Intercambiar el código de autorización por un token
-	token, err := googleOauthConfig.Exchange(context.Background(), code)
-	if err != nil {
-		http.Error(rw, "Failed to exchange token: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Token obtenido, puedes usarlo para hacer solicitudes autenticadas
-	userInfo, err := GetGoogleUserInfo(token)
-	if err != nil {
-		log.Println("Error fetching user info:", err)
-		http.Error(rw, "Failed to fetch user info", http.StatusInternalServerError)
-		return
-	}
-
-	// parsear el string a tipo uuid
-	parsedID := utils.GenerateDeterministicUint(userInfo.Sub)
-
-	// autenticar creando el token
-	tokenString, err := jwt.GenerateToken(parsedID, false, userInfo.Name, userInfo.Email, "", "", false, time.Now().Add(24*time.Hour))
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Establece la cookie con el token
-	http.SetCookie(rw, &http.Cookie{
-		Name:     auth_token,
-		Value:    tokenString,
-		Expires:  time.Now().Add(24 * time.Hour * 30),
-		Domain:   "",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   false,
-		Path:     "/",
-	})
-	// redireccionar al dashboard
-
-	http.Redirect(rw, r, "http://localhost:5173/dashboard", http.StatusTemporaryRedirect)
-}
-
-func GetGoogleUserInfo(token *oauth2.Token) (*GoogleUserInfo, error) {
-
-	client := googleOauthConfig.Client(context.Background(), token)
-
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user info: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var userInfo GoogleUserInfo
-
-	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		return nil, fmt.Errorf("failed to parse user info: %w", err)
-	}
-
-	return &userInfo, nil
-}
-
-func (h *AuthHandler) SendResetUserPasswordEmailHandler(rw http.ResponseWriter, r *http.Request) {
-
-	var (
-		smtpHost string = "smtp.gmail.com"
-		// smtpPort := "587"
-		sender   string   = "epereyra443@gmail.com"
-		password string   = "cubrrxzypaskawzc"
-		to       []string = []string{"pereyraezequiel15617866@outlook.es"}
-		u        UserEmail
-	)
-
-	b, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(rw, "Couldn't parse request body", http.StatusBadRequest)
-		return
-	}
-
-	defer r.Body.Close()
-
-	if err := json.Unmarshal(b, &u); err != nil {
-		http.Error(rw, "Error al deserializar el cuerpo de la solicitud", http.StatusBadRequest)
-		return
-	}
-
-	user, err := h.AuthServ.SearchUserByEmail(h.ctx, u.Email)
-
-	if err != nil {
-		http.Error(rw, "Si el correo es válido, recibirás un email con instrucciones.", http.StatusInternalServerError)
-		return
-	}
-
-	// crear un token utilizando los datos de user
-	tokenString, err := jwt.GenerateToken(user.ID, user.Is_admin, user.Name, user.Email, user.Surname, user.Phone_number, user.Is_barber, time.Now().Add(15*time.Minute))
-
-	if err != nil {
-		http.Error(rw, "[Creacion token] Algo salio mal, vuelve a intentarlo mas tarde", http.StatusInternalServerError)
-		return
-	}
-
-	// Autenticación con el servidor
-	auth := smtp.PlainAuth("", sender, password, smtpHost)
-
-	// Crear conexión segura con TLS
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-		ServerName:         smtpHost,
-	}
-
-	// Establecer conexión con el servidor SMTP
-	conn, err := tls.Dial("tcp", smtpHost+":465", tlsConfig) // Usa puerto 465 para TLS directo
-	if err != nil {
-		log.Fatal("Error en conexión TLS:", err)
-	}
-	client, err := smtp.NewClient(conn, smtpHost)
-	if err != nil {
-		log.Fatal("Error creando cliente SMTP:", err)
-	}
-
-	// Autenticarse
-	if err = client.Auth(auth); err != nil {
-		log.Fatal("Error en autenticación:", err)
-	}
-
-	// Configurar el remitente y destinatario
-	if err = client.Mail(sender); err != nil {
-		log.Fatal(err)
-	}
-	for _, recipient := range to {
-		if err = client.Rcpt(recipient); err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	// Escribir el mensaje
-	wc, err := client.Data()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	msg := fmt.Sprintf("Subject: 🔐 Recupera tu contraseña\r\n"+
-		"MIME-Version: 1.0\r\n"+
-		"Content-Type: text/html; charset=\"UTF-8\"\r\n"+
-		"\r\n"+
-		"<html><body>"+
-		"<h2>🔐 Recuperación de contraseña</h2>"+
-		"<p>Hola,</p>"+
-		"<p>Has solicitado restablecer tu contraseña. Haz clic en el botón de abajo:</p>"+
-		"<a href='http://localhost:5173/auth/recover/token=%s' "+
-		"style='display:inline-block;background-color:#007bff;color:#ffffff;padding:10px 20px;text-decoration:none;border-radius:5px;'>Restablecer contraseña</a>"+
-		"<p>Si no solicitaste esto, ignora este mensaje.</p>"+
-		"<p>Saludos,<br>Equipo de Soporte</p>"+
-		"</body></html>", tokenString)
-
-	_, err = wc.Write([]byte(msg))
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = wc.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Cerrar conexión
-	client.Quit()
-
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode("ok")
-}
-
 func (h *AuthHandler) ResetUserPassword(rw http.ResponseWriter, r *http.Request) {
 
 	var (
-		userData UserResetPassowrdReq
+		userData models.UserResetPassowrdReq
 	)
 
 	b, err := io.ReadAll(r.Body)

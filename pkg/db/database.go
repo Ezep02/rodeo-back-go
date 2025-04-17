@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ezep02/rodeo/internal/auth"
+	"github.com/ezep02/rodeo/internal/auth/models"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -22,7 +22,7 @@ func DB_Connection(dbConn string) (*gorm.DB, error) {
 	log.Println("[DB]: Successful connection")
 
 	// Migrar los modelos
-	if err := connection.AutoMigrate(&auth.User{}); err != nil {
+	if err := connection.AutoMigrate(&models.User{}); err != nil {
 		return nil, fmt.Errorf("[DB] error al migrar: %w", err) // Manejo de errores en migración
 	}
 

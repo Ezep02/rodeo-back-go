@@ -1,9 +1,10 @@
-package auth
+package repository
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/ezep02/rodeo/internal/auth/models"
 	"gorm.io/gorm"
 )
 
@@ -18,7 +19,7 @@ func NewAuthRepository(Connection *gorm.DB) *AuthRepository {
 	}
 }
 
-func (r *AuthRepository) RegisterUser(ctx context.Context, user *User) (*User, error) {
+func (r *AuthRepository) RegisterUser(ctx context.Context, user *models.User) (*models.User, error) {
 
 	result := r.Connection.WithContext(ctx).Create(user)
 
@@ -26,7 +27,7 @@ func (r *AuthRepository) RegisterUser(ctx context.Context, user *User) (*User, e
 		return nil, result.Error
 	}
 
-	return &User{
+	return &models.User{
 		Model:        user.Model,
 		Name:         user.Name,
 		Surname:      user.Surname,
@@ -36,8 +37,8 @@ func (r *AuthRepository) RegisterUser(ctx context.Context, user *User) (*User, e
 	}, nil
 }
 
-func (r *AuthRepository) SearchUserByEmail(ctx context.Context, email string) (*User, error) {
-	var user *User
+func (r *AuthRepository) SearchUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	var user *models.User
 
 	result := r.Connection.WithContext(ctx).Where("email = ?", email).Find(&user)
 

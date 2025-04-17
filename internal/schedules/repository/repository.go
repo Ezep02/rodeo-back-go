@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"log"
-	"time"
 
 	"github.com/ezep02/rodeo/internal/schedules/models"
 	"gorm.io/gorm"
@@ -62,8 +61,7 @@ func (sc *SchedulesRepository) GetAvailableSchedules(ctx context.Context, limit 
 	var schedules []models.Schedule
 
 	// Obtener los schedules creados por el barbero
-	today := time.Now().Truncate(24 * time.Hour)
-	if err := sc.Connection.WithContext(ctx).Where("schedule_day_date >= ?", today).Limit(limit).Find(&schedules).Error; err != nil {
+	if err := sc.Connection.WithContext(ctx).Where("schedule_day_date >= CURRENT_DATE").Limit(limit).Find(&schedules).Error; err != nil {
 		log.Println("Error al obtener los schedules:", err)
 		return nil, err
 	}
@@ -76,8 +74,7 @@ func (sc *SchedulesRepository) GetSchedulesList(ctx context.Context, barberID in
 	var schedules []models.Schedule
 
 	// Obtener los schedules creados por el barbero
-	today := time.Now().Truncate(24 * time.Hour)
-	if err := sc.Connection.WithContext(ctx).Where("barber_id = ? AND schedule_day_date >= ?", barberID, today).Limit(limit).Offset(offset).Find(&schedules).Error; err != nil {
+	if err := sc.Connection.WithContext(ctx).Where("barber_id = ? AND schedule_day_date >= CURRENT_DATE", barberID).Limit(limit).Offset(offset).Find(&schedules).Error; err != nil {
 		log.Println("Error al obtener los schedules:", err)
 		return nil, err
 	}

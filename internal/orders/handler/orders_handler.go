@@ -155,7 +155,7 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 			},
 		},
 
-		NotificationURL:    "https://af39-181-16-122-113.ngrok-free.app/order/webhook",
+		NotificationURL:    "https://3ffd-181-16-122-113.ngrok-free.app/order/webhook",
 		Expires:            true,
 		ExpirationDateFrom: func() *time.Time { now := time.Now(); return &now }(),
 		ExpirationDateTo:   func(t time.Time) *time.Time { t = t.Add(30 * 24 * time.Hour); return &t }(*newOrder.Schedule_day_date),
@@ -246,7 +246,6 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	order, err := helpers.BuildOrderFromWebhook(root)
-	log.Println("[order]:", order)
 	if err != nil {
 		log.Println("Error formateando respuesta de MercadoPago:", err)
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
