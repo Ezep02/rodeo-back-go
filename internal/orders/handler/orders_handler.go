@@ -15,8 +15,6 @@ import (
 	"github.com/ezep02/rodeo/internal/orders/utils"
 	"github.com/gorilla/websocket"
 
-	"github.com/ezep02/rodeo/pkg/jwt"
-
 	"github.com/spf13/viper"
 )
 
@@ -56,9 +54,8 @@ func init() {
 func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Request) {
 
 	var (
-		newOrder       models.ServiceOrder
-		validatedToken *jwt.VerifyTokenRes
-		responseBody   map[string]any
+		newOrder     models.ServiceOrder
+		responseBody map[string]any
 	)
 
 	if err := json.NewDecoder(r.Body).Decode(&newOrder); err != nil {
@@ -68,28 +65,16 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 
 	defer r.Body.Close()
 
-	cookie, err := r.Cookie(auth_token)
-	if err != nil {
-		http.Error(rw, "No token provided", http.StatusUnauthorized)
-		return
-	}
-	token, err := jwt.VerfiyToken(cookie.Value)
-	if err != nil {
-		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
-		return
-	}
-	validatedToken = token
-
 	// crear token transitorio
 	now := time.Now()
 	orderToken, err := utils.GenerateOrderToken(models.PendingOrderToken{
 		Title:               newOrder.Title,
-		Payer_name:          validatedToken.Name,
-		Payer_surname:       validatedToken.Surname,
+		Payer_name:          newOrder.Payer_name,
+		Payer_surname:       newOrder.Payer_surname,
 		Barber_id:           newOrder.Barber_id,
 		Schedule_day_date:   newOrder.Schedule_day_date,
 		Schedule_start_time: newOrder.Schedule_start_time,
-		User_id:             int(validatedToken.ID),
+		User_id:             newOrder.User_id,
 		Price:               float64(newOrder.Price),
 		ID:                  uint(newOrder.Shift_id),
 		Created_at:          &now,
@@ -101,15 +86,14 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 	}
 
 	// almacenar transitoriamente el token
-
 	if err := orh.ord_srv.SetOrderToken(orh.ctx, orderToken, models.PendingOrderToken{
 		Title:               newOrder.Title,
-		Payer_name:          validatedToken.Name,
-		Payer_surname:       validatedToken.Surname,
+		Payer_name:          newOrder.Payer_name,
+		Payer_surname:       newOrder.Payer_surname,
 		Barber_id:           newOrder.Barber_id,
 		Schedule_day_date:   newOrder.Schedule_day_date,
 		Schedule_start_time: newOrder.Schedule_start_time,
-		User_id:             int(validatedToken.ID),
+		User_id:             newOrder.User_id,
 		ID:                  uint(newOrder.Shift_id),
 		Price:               float64(newOrder.Price),
 		Created_at:          &now,
@@ -137,25 +121,25 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 			},
 		},
 		Metadata: models.Metadata{
-			UserID:              validatedToken.ID,
+			UserID:              uint(newOrder.User_id),
 			Barber_id:           newOrder.Barber_id,
 			Service_id:          newOrder.Service_id,
 			Created_by_id:       newOrder.Created_by_id,
 			Shift_id:            newOrder.Shift_id,
-			Email:               validatedToken.Email,
+			Email:               newOrder.Payer_email,
 			Service_duration:    newOrder.Service_duration,
 			Schedule_start_time: newOrder.Schedule_start_time,
 			Schedule_day_date:   newOrder.Schedule_day_date,
 		},
 		Payer: models.Payer{
-			Name:    validatedToken.Name,
-			Surname: validatedToken.Surname,
+			Name:    newOrder.Payer_name,
+			Surname: newOrder.Payer_surname,
 			Phone: models.Phone{
-				Number: validatedToken.Phone_number,
+				Number: newOrder.Payer_phone_number,
 			},
 		},
 
-		NotificationURL:    "https://3ffd-181-16-122-113.ngrok-free.app/order/webhook",
+		NotificationURL:    "https://2b3c-181-16-122-113.ngrok-free.app/order/webhook",
 		Expires:            true,
 		ExpirationDateFrom: func() *time.Time { now := time.Now(); return &now }(),
 		ExpirationDateTo:   func(t time.Time) *time.Time { t = t.Add(30 * 24 * time.Hour); return &t }(*newOrder.Schedule_day_date),

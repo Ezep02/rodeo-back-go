@@ -65,17 +65,24 @@ func (r *ServiceRepository) GetPopularServices(ctx context.Context) ([]models.Po
 		return monthlyPopularServices, nil
 	}
 
+	// veces elegido + cortes totales en el mes / 2
 	err := r.Connection.WithContext(ctx).Raw(`
 		SELECT 
-			title, 
-			COUNT(*) AS total_orders
-		FROM orders 
-		WHERE mp_status = ?
-		AND EXTRACT(MONTH FROM schedule_day_date) = EXTRACT(MONTH FROM CURRENT_DATE)
-		GROUP BY title
-		ORDER BY total_orders DESC
-		LIMIT 4
-	`, statusApproved).Scan(&monthlyPopularServices).Error
+			o.title,
+			(COUNT(DISTINCT o.user_id) * 100.0 / total.total_users) AS total_avg
+		FROM orders o
+		CROSS JOIN (
+			SELECT COUNT(DISTINCT user_id) AS total_users
+			FROM orders
+			WHERE mp_status = ?
+			AND EXTRACT(MONTH FROM schedule_day_date) = EXTRACT(MONTH FROM CURRENT_DATE)
+		) AS total
+		WHERE o.mp_status = ?
+		AND EXTRACT(MONTH FROM o.schedule_day_date) = EXTRACT(MONTH FROM CURRENT_DATE)
+		GROUP BY o.title, total.total_users
+		ORDER BY total_avg DESC
+		LIMIT 3
+	`, statusApproved, statusApproved).Scan(&monthlyPopularServices).Error
 
 	if err != nil {
 		return nil, err

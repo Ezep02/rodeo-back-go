@@ -77,6 +77,11 @@ type Request struct {
 }
 
 type ServiceOrder struct {
+	User_id             int        `json:"User_id"`
+	Payer_name          string     `json:"Payer_name"`
+	Payer_surname       string     `json:"Payer_surname"`
+	Payer_email         string     `json:"Payer_email"`
+	Payer_phone_number  string     `json:"Payer_phone_number"`
 	Barber_id           int        `json:"Barber_id"`
 	Created_by_id       int        `json:"Created_by_id"`
 	Description         string     `json:"Description"`

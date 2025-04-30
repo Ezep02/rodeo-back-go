@@ -12,8 +12,8 @@ type Service struct {
 }
 
 type PopularServices struct {
-	Title        string `json:"title"`
-	Total_orders int    `json:"total_orders"`
+	Title     string  `json:"title"`
+	Total_avg float64 `json:"total_avg"`
 }
 
 type ServiceRequest struct {
