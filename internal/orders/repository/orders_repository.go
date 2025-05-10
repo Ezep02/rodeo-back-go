@@ -27,8 +27,6 @@ func NewOrderRepository(cnn *gorm.DB, redis *redis.Client) *OrderRepository {
 
 func (or *OrderRepository) CreatingNewOrder(ctx context.Context, order *models.Order) (*models.Order, error) {
 
-	log.Println("ORDERS:\n", order)
-
 	// Create order and update schedule status as not available
 	or.Connection.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 
@@ -134,6 +132,7 @@ func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, user
 		SELECT 
 			id,
 			title,
+			shift_id,
 			schedule_day_date,
 			schedule_start_time,
 			created_at,
@@ -149,8 +148,6 @@ func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, user
 		LIMIT 5
 	`, userID).Scan(&customerPendingTurns).Error
 
-	log.Println("ORDERS:\n", customerPendingTurns)
-
 	if dbErr != nil {
 		return nil, dbErr
 	}
@@ -162,4 +159,70 @@ func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, user
 	}
 
 	return customerPendingTurns, nil
+}
+
+func (r *OrderRepository) ReschedulingDateTimeOrder(ctx context.Context, schedule models.RescheduleRequest, user_id int) (*models.UpdatedCustomerPendingOrder, error) {
+	log.Println("SCHEDULE REQ", schedule, user_id)
+	// Update order and update schedule status as available
+	r.Connection.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+
+		tx.Transaction(func(order_tx *gorm.DB) error {
+
+			if dbError := order_tx.Exec(`
+				UPDATE orders 
+				SET shift_id = ?, schedule_day_date = ?, schedule_start_time = ?, barber_id = ?
+				WHERE user_id = ? AND id = ?
+			`,
+				schedule.Shift_id,
+				schedule.Schedule_day_date,
+				schedule.Start_time,
+				schedule.Barber_id,
+				user_id,
+				schedule.Order_id,
+			).Error; dbError != nil {
+				log.Println("[rolling back updating order]")
+				order_tx.Rollback()
+				return dbError
+			}
+
+			log.Println("[updated new order]")
+			return nil
+		})
+
+		// update schedule as available
+		tx.Transaction(func(updating_status_tx *gorm.DB) error {
+
+			if upating_status_err := updating_status_tx.Exec(`
+				UPDATE schedules 
+				SET available = ?
+				WHERE id = ?
+			`, true, schedule.Old_schedule_id).Error; upating_status_err != nil {
+				log.Println("[status updated]")
+				return nil
+			}
+			return nil
+		})
+
+		// setting new schedule as not available
+		tx.Transaction(func(updating_status_tx *gorm.DB) error {
+
+			if upating_status_err := updating_status_tx.Exec(`
+				UPDATE schedules 
+				SET available = ?
+				WHERE id = ?
+			`, false, schedule.Shift_id).Error; upating_status_err != nil {
+				log.Println("[status updated]")
+				return nil
+			}
+			return nil
+		})
+		return nil
+	})
+
+	return &models.UpdatedCustomerPendingOrder{
+		ID:                  schedule.Order_id,
+		Title:               schedule.Service_title,
+		Schedule_day_date:   schedule.Schedule_day_date,
+		Schedule_start_time: schedule.Start_time,
+	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/ezep02/rodeo/internal/orders/models"
 	"github.com/ezep02/rodeo/pkg/jwt"
 )
 
@@ -62,12 +63,64 @@ func (h *OrderHandler) GetSuccessPaymentHandler(rw http.ResponseWriter, r *http.
 }
 
 // Refaund
-func (h *OrderHandler) CreateOrderRefaund(rw http.ResponseWriter, r *http.Request) {
+func (h *OrderHandler) CreateOrderRefund(rw http.ResponseWriter, r *http.Request) {
 
 	// obtener los datos del refaund
 
-	// -> crea el refound con los datos obtenidos
+	// validar que la orden ya este cancelada
 
-	// hecha la peticion
+	// casos
+	// 1. refaund antes de 24 horas -> refaund 100%
+	// 2. refaund dentro de 24 horas -> refaund 20%
 
+	// liberar el turno -> actualizar status a Activo
+
+	// actualizar la orden de estado pendiente a cancelado
+
+	// crear un descuento de n%
+
+	// si todo va bien, devolver el descuento con ws
+
+	// fin
+}
+
+// Reschedule
+func (h *OrderHandler) CreateReschedule(rw http.ResponseWriter, r *http.Request) {
+
+	var (
+		schedule       *models.RescheduleRequest
+		validatedToken *jwt.VerifyTokenRes
+	)
+
+	if err := json.NewDecoder(r.Body).Decode(&schedule); err != nil {
+		http.Error(rw, "No se pudo parsear correctamente el cuerpo de la petición", http.StatusBadRequest)
+		return
+	}
+
+	if cookie, err := r.Cookie(auth_token); err == nil {
+		token, err := jwt.VerfiyToken(cookie.Value)
+		if err != nil {
+			http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
+			return
+		}
+		validatedToken = token
+	} else {
+		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
+		return
+	}
+
+	// actualizar los datos de la orden
+	updated_pending_order, err := h.ord_srv.UpdateScheduleOrder(h.ctx, *schedule, int(validatedToken.ID))
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// liberar turno
+
+	// actualizar orden, el schedule time
+	// Responder con JSON
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(updated_pending_order)
 }

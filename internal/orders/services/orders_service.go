@@ -38,3 +38,8 @@ func (s *OrderService) SetOrderToken(ctx context.Context, token string, order mo
 func (s *OrderService) GetOrderByToken(ctx context.Context, token string) (models.PendingOrderToken, error) {
 	return s.OrderRepo.SearchingOrderToken(ctx, token)
 }
+
+// reprogramar horario del turno
+func (s *OrderService) UpdateScheduleOrder(ctx context.Context, schedule models.RescheduleRequest, user_id int) (*models.UpdatedCustomerPendingOrder, error) {
+	return s.OrderRepo.ReschedulingDateTimeOrder(ctx, schedule, user_id)
+}

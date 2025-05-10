@@ -102,47 +102,10 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var success_url string = fmt.Sprintf("http://localhost:5173/payment/success/token=%s", orderToken)
-
-	request := models.Request{
-		BackURLs: models.BackURLs{
-			Success: success_url,
-			Pending: "http://localhost:8080/payment/pending",
-			Failure: "http://localhost:8080/payment/failure",
-		},
-
-		Items: []models.Item{
-			{
-				ID:          newOrder.Service_id,
-				Title:       newOrder.Title,
-				Quantity:    1,
-				UnitPrice:   newOrder.Price,
-				Description: newOrder.Description,
-			},
-		},
-		Metadata: models.Metadata{
-			UserID:              uint(newOrder.User_id),
-			Barber_id:           newOrder.Barber_id,
-			Service_id:          newOrder.Service_id,
-			Created_by_id:       newOrder.Created_by_id,
-			Shift_id:            newOrder.Shift_id,
-			Email:               newOrder.Payer_email,
-			Service_duration:    newOrder.Service_duration,
-			Schedule_start_time: newOrder.Schedule_start_time,
-			Schedule_day_date:   newOrder.Schedule_day_date,
-		},
-		Payer: models.Payer{
-			Name:    newOrder.Payer_name,
-			Surname: newOrder.Payer_surname,
-			Phone: models.Phone{
-				Number: newOrder.Payer_phone_number,
-			},
-		},
-
-		NotificationURL:    "https://2b3c-181-16-122-113.ngrok-free.app/order/webhook",
-		Expires:            true,
-		ExpirationDateFrom: func() *time.Time { now := time.Now(); return &now }(),
-		ExpirationDateTo:   func(t time.Time) *time.Time { t = t.Add(30 * 24 * time.Hour); return &t }(*newOrder.Schedule_day_date),
+	request, err := helpers.BuildOrderPreference(newOrder, orderToken)
+	if err != nil {
+		http.Error(rw, "Algo salio mal intentando crear la preferencia", http.StatusBadRequest)
+		return
 	}
 
 	// Serializa el objeto request a JSON
