@@ -43,5 +43,6 @@ type UpdatedCustomerPendingOrder struct {
 	ID                  int        `json:"ID"`
 	Title               string     `json:"title"`
 	Schedule_day_date   *time.Time `json:"schedule_day_date"`
+	Shift_id            int        `json:"shift_id"`
 	Schedule_start_time string     `json:"schedule_start_time"`
 }

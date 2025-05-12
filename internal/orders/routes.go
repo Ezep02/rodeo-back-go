@@ -30,6 +30,7 @@ func OrderRoutes(r chi.Router, db *gorm.DB, redis *redis.Client) {
 		r.Post("/success", orderHandler.GetSuccessPaymentHandler)
 		r.Post("/refund", orderHandler.CreateOrderRefund)
 		r.Post("/reschedule", orderHandler.CreateReschedule)
+		r.HandleFunc("/notification", handler.HandleConnection)
 	})
 
 }

@@ -197,9 +197,9 @@ func (r *OrderRepository) ReschedulingDateTimeOrder(ctx context.Context, schedul
 				SET available = ?
 				WHERE id = ?
 			`, true, schedule.Old_schedule_id).Error; upating_status_err != nil {
-				log.Println("[status updated]")
 				return nil
 			}
+			log.Println("[status available updated]")
 			return nil
 		})
 
@@ -211,9 +211,9 @@ func (r *OrderRepository) ReschedulingDateTimeOrder(ctx context.Context, schedul
 				SET available = ?
 				WHERE id = ?
 			`, false, schedule.Shift_id).Error; upating_status_err != nil {
-				log.Println("[status updated]")
 				return nil
 			}
+			log.Println("[status not available updated]")
 			return nil
 		})
 		return nil
@@ -224,5 +224,6 @@ func (r *OrderRepository) ReschedulingDateTimeOrder(ctx context.Context, schedul
 		Title:               schedule.Service_title,
 		Schedule_day_date:   schedule.Schedule_day_date,
 		Schedule_start_time: schedule.Start_time,
+		Shift_id:            schedule.Shift_id,
 	}, nil
 }

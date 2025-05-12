@@ -6,6 +6,7 @@ import (
 
 	"github.com/ezep02/rodeo/internal/orders/models"
 	"github.com/ezep02/rodeo/pkg/jwt"
+	"github.com/gorilla/websocket"
 )
 
 func (h *OrderHandler) CustomerPendingOrderHandler(rw http.ResponseWriter, r *http.Request) {
@@ -88,7 +89,7 @@ func (h *OrderHandler) CreateOrderRefund(rw http.ResponseWriter, r *http.Request
 func (h *OrderHandler) CreateReschedule(rw http.ResponseWriter, r *http.Request) {
 
 	var (
-		schedule       *models.RescheduleRequest
+		schedule       models.RescheduleRequest
 		validatedToken *jwt.VerifyTokenRes
 	)
 
@@ -110,16 +111,24 @@ func (h *OrderHandler) CreateReschedule(rw http.ResponseWriter, r *http.Request)
 	}
 
 	// actualizar los datos de la orden
-	updated_pending_order, err := h.ord_srv.UpdateScheduleOrder(h.ctx, *schedule, int(validatedToken.ID))
+	updated_pending_order, err := h.ord_srv.UpdateScheduleOrder(h.ctx, schedule, int(validatedToken.ID))
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// liberar turno
+	// enviar contenido ws
+	msg, err := json.Marshal(updated_pending_order)
+	if err != nil {
+		http.Error(rw, "Error preparando entrega de datos", http.StatusBadRequest)
+		return
+	}
 
-	// actualizar orden, el schedule time
-	// Responder con JSON
+	if err := sendMessageToPeer(websocket.TextMessage, msg); err != nil {
+		http.Error(rw, "Error durante la entrega de datos", http.StatusBadRequest)
+		return
+	}
+
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(updated_pending_order)
