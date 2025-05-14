@@ -90,7 +90,7 @@ func (r *ServiceRepository) GetPopularServices(ctx context.Context) ([]models.Po
 
 	//cachear la informacion
 	if popularServicesBytes, _ := json.Marshal(monthlyPopularServices); popularServicesBytes != nil {
-		r.RedisConnection.Set(ctx, redisCacheKey, popularServicesBytes, 30*time.Minute)
+		r.RedisConnection.Set(ctx, redisCacheKey, popularServicesBytes, 5*time.Minute)
 		return monthlyPopularServices, nil
 	}
 

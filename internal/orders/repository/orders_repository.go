@@ -121,11 +121,11 @@ func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, user
 
 	customerOrdersCacheKey := fmt.Sprintf("customer_order:id-%d", userID)
 
-	// if cachedCustomerPendingOrders, cacheErr := r.RedisConnection.Get(ctx, customerOrdersCacheKey).Result(); cachedCustomerPendingOrders != "" && cacheErr == nil {
-	// 	json.Unmarshal([]byte(cachedCustomerPendingOrders), &customerPendingTurns)
-	// 	log.Println("[cache hit] customer pending orders")
-	// 	return customerPendingTurns, nil
-	// }
+	if cachedCustomerPendingOrders, cacheErr := r.RedisConnection.Get(ctx, customerOrdersCacheKey).Result(); cachedCustomerPendingOrders != "" && cacheErr == nil {
+		json.Unmarshal([]byte(cachedCustomerPendingOrders), &customerPendingTurns)
+		log.Println("[cache hit] customer pending orders")
+		return customerPendingTurns, nil
+	}
 
 	// No estaba en cache o cache inválida, ir a la DB
 	dbErr := r.Connection.WithContext(ctx).Raw(`
