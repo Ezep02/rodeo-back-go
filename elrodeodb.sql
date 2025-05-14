@@ -38,7 +38,7 @@ CREATE TABLE orders (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     title VARCHAR(150) NOT NULL,
     description TEXT DEFAULT NULL,
-    price DECIMAL(12, 0) NOT NULL DEFAULT 0,
+    price FLOAT NOT NULL DEFAULT 0,
     service_duration INT DEFAULT 0,
     user_id INT UNSIGNED NOT NULL,
     barber_id INT UNSIGNED NOT NULL,
@@ -57,7 +57,6 @@ CREATE TABLE orders (
     updated_at TIMESTAMP DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP DEFAULT NULL,
     PRIMARY KEY (id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (service_id) REFERENCES services(id),
     FOREIGN KEY (created_by_id) REFERENCES users(id) 
 );
