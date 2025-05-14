@@ -102,6 +102,7 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	log.Println("[ORDER TOKEN]:", orderToken)
 	request, err := helpers.BuildOrderPreference(newOrder, orderToken)
 	if err != nil {
 		http.Error(rw, "Algo salio mal intentando crear la preferencia", http.StatusBadRequest)

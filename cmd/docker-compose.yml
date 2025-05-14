@@ -1,0 +1,25 @@
+services:
+  mysql:
+    image: mysql:latest
+    container_name: elrodeodb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 7nc4381c4t
+      MYSQL_DATABASE: elrodeodb
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./elrodeodb.sql:/docker-entrypoint-initdb.d/elrodeodb.sql  # Script SQL de inicialización
+      - mysql_data:/var/lib/mysql  # Persistencia de datos
+  redis:
+    image: redis
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+
+# 🔹 Definición del volumen para persistencia de datos
+volumes:
+  mysql_data:
+

@@ -185,7 +185,6 @@ func (r *OrderRepository) ReschedulingDateTimeOrder(ctx context.Context, schedul
 				return dbError
 			}
 
-			log.Println("[updated new order]")
 			return nil
 		})
 

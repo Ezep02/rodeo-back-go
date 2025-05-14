@@ -71,6 +71,7 @@ func (sch *ScheduleHandler) BarberSchedulesHandler(rw http.ResponseWriter, r *ht
 			log.Println("Schedule", schedule)
 		default:
 			log.Println("no es new")
+			continue
 		}
 	}
 
@@ -79,27 +80,26 @@ func (sch *ScheduleHandler) BarberSchedulesHandler(rw http.ResponseWriter, r *ht
 		log.Println("Start creating process ")
 		go func() {
 			log.Println("elements", schedulesToAdd)
-			_, err := sch.Sch_serv.CreateBarberSchedules(sch.Ctx, &schedulesToAdd)
+			data, err := sch.Sch_serv.CreateBarberSchedules(sch.Ctx, &schedulesToAdd)
 			if err != nil {
 				http.Error(rw, err.Error(), http.StatusConflict)
 				log.Println("Schedules,", err.Error())
 				return
 			}
+			// convertir a array de bytes y enviar paquete por websocket
+			b, err := json.Marshal(data)
+			if err != nil {
+				log.Println("Convertion error to byte")
+				http.Error(rw, err.Error(), http.StatusConflict)
+				return
+			}
+
+			if err := sendUpdatedData(websocket.TextMessage, b); err != nil {
+				log.Println("Error al enviar mensaje al cliente:", err.Error())
+				http.Error(rw, "Error interno al procesar la orden", http.StatusInternalServerError)
+				return
+			}
 		}()
-
-		// convertir a array de bytes y enviar paquete por websocket
-		b, err := json.Marshal(schedulesToAdd)
-		if err != nil {
-			log.Println("Convertion error to byte")
-			http.Error(rw, err.Error(), http.StatusConflict)
-			return
-		}
-
-		if err := sendUpdatedData(websocket.TextMessage, b); err != nil {
-			log.Println("Error al enviar mensaje al cliente:", err.Error())
-			http.Error(rw, "Error interno al procesar la orden", http.StatusInternalServerError)
-			return
-		}
 	}
 
 	// Delete schedules
@@ -119,9 +119,10 @@ func (sch *ScheduleHandler) BarberSchedulesHandler(rw http.ResponseWriter, r *ht
 		}()
 	}
 
-	rw.Header().Set("Content-Type", "application/json")
+	rw.Header().Add("Content-type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode("Operacion exitosa")
+	json.NewEncoder(rw).Encode("OK")
+
 }
 
 func (sch_h *ScheduleHandler) GetBarberSchedulesHandler(rw http.ResponseWriter, r *http.Request) {

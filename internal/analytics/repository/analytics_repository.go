@@ -79,7 +79,7 @@ func (r *Analytics_repository) GetMonthlyRevenueAndAvgComparedToLastMonth(ctx co
 			Total_month_revenue:     totalRevenue,
 			Avg_compared_last_month: avgComparedLastMonth})
 
-	r.RedisConnection.Set(ctx, redisCacheKey, data, 20*time.Minute)
+	r.RedisConnection.Set(ctx, redisCacheKey, data, 5*time.Minute)
 	// Devuelve los resultados
 	return totalRevenue, avgComparedLastMonth, nil
 }
@@ -145,7 +145,7 @@ func (r *Analytics_repository) GetMonthlyAppointmentsAndAvgComparedToLastMonth(c
 			Total_month_appointments: total_month_appointments,
 			Avg_compared_last_month:  avg_compared_last_month})
 
-	r.RedisConnection.Set(ctx, redisCacheKey, data, 20*time.Minute)
+	r.RedisConnection.Set(ctx, redisCacheKey, data, 5*time.Minute)
 	return total_month_appointments, avg_compared_last_month, nil
 }
 
@@ -209,7 +209,7 @@ func (r *Analytics_repository) GetMonthlyNewCustomersAndAvgComparedToLastMonth(c
 			Avg_compared_last_month: customersAvgComparedLastMonth,
 		})
 
-	r.RedisConnection.Set(ctx, redisCacheKey, data, 20*time.Minute)
+	r.RedisConnection.Set(ctx, redisCacheKey, data, 5*time.Minute)
 
 	return monthlyNewCustomers, customersAvgComparedLastMonth, nil
 }
@@ -281,7 +281,7 @@ func (r *Analytics_repository) GetMonthlyPopularServices(ctx context.Context) ([
 	log.Println("monthlyPopularServices", monthlyPopularServices)
 	// Volver a cachear datos
 	data, _ := json.Marshal(monthlyPopularServices)
-	r.RedisConnection.Set(ctx, redisCacheKey, data, 20*time.Minute)
+	r.RedisConnection.Set(ctx, redisCacheKey, data, 5*time.Minute)
 
 	return monthlyPopularServices, nil
 }
@@ -320,7 +320,7 @@ func (r *Analytics_repository) GetFrequentCustomers(ctx context.Context) ([]mode
 
 	// Volver a cachear datos
 	data, _ := json.Marshal(TopFrequentCustomers)
-	r.RedisConnection.Set(ctx, redisCacheKey, data, 20*time.Minute)
+	r.RedisConnection.Set(ctx, redisCacheKey, data, 5*time.Minute)
 
 	return TopFrequentCustomers, nil
 }
@@ -354,7 +354,7 @@ func (r *Analytics_repository) GetYearlyBarberHaircuts(ctx context.Context, barb
 
 	// cachear los datos
 	data, _ := json.Marshal(yearlyHairCuts)
-	r.RedisConnection.Set(ctx, redisCacheKey, data, 20*time.Minute)
+	r.RedisConnection.Set(ctx, redisCacheKey, data, 5*time.Minute)
 
 	return yearlyHairCuts, nil
 }
