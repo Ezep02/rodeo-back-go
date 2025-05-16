@@ -43,3 +43,21 @@ func (s *OrderService) GetOrderByToken(ctx context.Context, token string) (model
 func (s *OrderService) UpdateScheduleOrder(ctx context.Context, schedule models.RescheduleRequest, user_id int) (*models.UpdatedCustomerPendingOrder, error) {
 	return s.OrderRepo.ReschedulingDateTimeOrder(ctx, schedule, user_id)
 }
+
+// Refound
+func (s *OrderService) NewRefound(ctx context.Context, refund models.RefundRequest) (*models.UpdatedCustomerPendingOrder, error) {
+	return s.OrderRepo.CreatingRefund(ctx, refund)
+}
+
+func (s *OrderService) CheckOrderStatus(ctx context.Context, order_id int) (bool, error) {
+	return s.OrderRepo.CheckingOrderStatus(ctx, order_id)
+}
+
+// Coupon
+func (s *OrderService) GenerateCoupon(ctx context.Context, coupon models.Coupon) (models.Coupon, error) {
+	return s.OrderRepo.CreatingCoupon(ctx, coupon)
+}
+
+func (s *OrderService) GetCustomerCoupons(ctx context.Context, user_id int) (*[]models.Coupon, error) {
+	return s.OrderRepo.GettingCustomerCoupons(ctx, user_id)
+}

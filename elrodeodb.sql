@@ -88,3 +88,17 @@ Create table expenses (
 	PRIMARY KEY (id),
     FOREIGN KEY (admin_id) REFERENCES users(id)
 );
+
+
+CREATE TABLE coupons (
+    code VARCHAR(12) PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    discount_percent DECIMAL(5,2),
+    available BOOLEAN DEFAULT true,
+    used BOOLEAN DEFAULT false,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    available_to_date DATETIME NOT NULL,
+    used_at DATETIME default NULL,
+    coupon_type ENUM('reembolso', 'promo'),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);

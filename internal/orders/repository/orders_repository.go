@@ -117,15 +117,16 @@ func (r *OrderRepository) GetBarberPendingOrders(ctx context.Context, barberID i
 func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, userID int) ([]models.CustomerPendingOrder, error) {
 	var (
 		customerPendingTurns []models.CustomerPendingOrder
+		mp_status            string = "approved"
 	)
 
 	customerOrdersCacheKey := fmt.Sprintf("customer_order:id-%d", userID)
 
-	// if cachedCustomerPendingOrders, cacheErr := r.RedisConnection.Get(ctx, customerOrdersCacheKey).Result(); cachedCustomerPendingOrders != "" && cacheErr == nil {
-	// 	json.Unmarshal([]byte(cachedCustomerPendingOrders), &customerPendingTurns)
-	// 	log.Println("[cache hit] customer pending orders")
-	// 	return customerPendingTurns, nil
-	// }
+	if cachedCustomerPendingOrders, cacheErr := r.RedisConnection.Get(ctx, customerOrdersCacheKey).Result(); cachedCustomerPendingOrders != "" && cacheErr == nil {
+		json.Unmarshal([]byte(cachedCustomerPendingOrders), &customerPendingTurns)
+		log.Println("[cache hit] customer pending orders")
+		return customerPendingTurns, nil
+	}
 
 	// No estaba en cache o cache inválida, ir a la DB
 	dbErr := r.Connection.WithContext(ctx).Raw(`
@@ -141,12 +142,13 @@ func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, user
 		FROM orders 
 		WHERE 
 			user_id = ?
+			AND mp_status = ?
 			AND deleted_at IS NULL
 			AND schedule_day_date >= CURRENT_DATE
 			AND EXTRACT(MONTH FROM schedule_day_date) = EXTRACT(MONTH FROM CURRENT_DATE)
 		ORDER BY schedule_day_date ASC, schedule_start_time ASC
 		LIMIT 5
-	`, userID).Scan(&customerPendingTurns).Error
+	`, userID, mp_status).Scan(&customerPendingTurns).Error
 
 	if dbErr != nil {
 		return nil, dbErr
@@ -162,7 +164,7 @@ func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, user
 }
 
 func (r *OrderRepository) ReschedulingDateTimeOrder(ctx context.Context, schedule models.RescheduleRequest, user_id int) (*models.UpdatedCustomerPendingOrder, error) {
-	log.Println("SCHEDULE REQ", schedule, user_id)
+
 	// Update order and update schedule status as available
 	r.Connection.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 
@@ -225,4 +227,21 @@ func (r *OrderRepository) ReschedulingDateTimeOrder(ctx context.Context, schedul
 		Schedule_start_time: schedule.Start_time,
 		Shift_id:            schedule.Shift_id,
 	}, nil
+}
+
+// Coupons
+func (r *OrderRepository) GettingCustomerCoupons(ctx context.Context, user_id int) (*[]models.Coupon, error) {
+
+	var available_coupons *[]models.Coupon
+
+	if err := r.Connection.WithContext(ctx).Raw(`
+		SELECT * FROM coupons 
+		WHERE user_id = ? 
+		AND available_to_date >= CURRENT_DATE 
+		AND available = ?
+	`, user_id, true).Scan(&available_coupons).Error; err != nil {
+		return nil, err
+	}
+
+	return available_coupons, nil
 }

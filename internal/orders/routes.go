@@ -28,9 +28,11 @@ func OrderRoutes(r chi.Router, db *gorm.DB, redis *redis.Client) {
 	r.Route("/order/customer", func(r chi.Router) {
 		r.Get("/", orderHandler.CustomerPendingOrderHandler)
 		r.Post("/success", orderHandler.GetSuccessPaymentHandler)
-		r.Post("/refund", orderHandler.CreateOrderRefund)
+		r.Post("/refund", orderHandler.CreateRefundHandler)
 		r.Post("/reschedule", orderHandler.CreateReschedule)
+		r.Get("/coupons", orderHandler.GetCouponsHandler)
 		r.HandleFunc("/notification", handler.HandleConnection)
+		r.HandleFunc("/notification-coupon", handler.HandleConnection)
 	})
 
 }

@@ -2,8 +2,10 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
+	"github.com/ezep02/rodeo/internal/orders/helpers"
 	"github.com/ezep02/rodeo/internal/orders/models"
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/gorilla/websocket"
@@ -64,25 +66,78 @@ func (h *OrderHandler) GetSuccessPaymentHandler(rw http.ResponseWriter, r *http.
 }
 
 // Refaund
-func (h *OrderHandler) CreateOrderRefund(rw http.ResponseWriter, r *http.Request) {
+func (h *OrderHandler) CreateRefundHandler(rw http.ResponseWriter, r *http.Request) {
+	var (
+		requestBody *models.RefundRequest
+	)
 
 	// obtener los datos del refaund
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(rw, "Error recibiendo los datos", http.StatusBadRequest)
+		return
+	}
+
+	// validar session
+	cookie, err := r.Cookie(auth_token)
+	if err != nil {
+		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		return
+	}
+
+	tokenString := cookie.Value
+	token, err := jwt.VerfiyToken(tokenString)
+
+	if err != nil {
+		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
+		return
+	}
 
 	// validar que la orden ya este cancelada
+	if isCanceled, err := h.ord_srv.CheckOrderStatus(h.ctx, requestBody.Order_id); isCanceled || err != nil {
+		http.Error(rw, "Algo salio mal al intentar cancelar el turno", http.StatusBadRequest)
+		return
+	}
 
-	// casos
-	// 1. refaund antes de 24 horas -> refaund 100%
-	// 2. refaund dentro de 24 horas -> refaund 20%
+	// cacelar la orden y liberar turno, devuelve el turno a liberar
+	available_schedule, err := h.ord_srv.NewRefound(h.ctx, *requestBody)
+	if err != nil {
+		http.Error(rw, "Algo no fue bien intentando cancelar el turno", http.StatusBadRequest)
+		return
+	}
 
-	// liberar el turno -> actualizar status a Activo
+	parsed_coupon, err := helpers.CouponFormater(*requestBody, int(token.ID))
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	// actualizar la orden de estado pendiente a cancelado
+	go func() {
+		// GENERAR CUPON, DEVOLVER MEDIANTE WS
 
-	// crear un descuento de n%
+		available_coupon, err := h.ord_srv.GenerateCoupon(h.ctx, parsed_coupon)
+		if err != nil {
+			http.Error(rw, "Algo no fue bien intentando cancelar el turno", http.StatusBadRequest)
+			return
+		}
 
-	// si todo va bien, devolver el descuento con ws
+		log.Println("[NEW COUPON]:", available_coupon)
 
-	// fin
+		// enviar contenido ws
+		msg, err := json.Marshal(available_coupon)
+		if err != nil {
+			http.Error(rw, "Error preparando entrega de datos", http.StatusBadRequest)
+			return
+		}
+
+		if err := sendMessageToPeer(websocket.TextMessage, msg); err != nil {
+			http.Error(rw, "Error durante la entrega de datos", http.StatusBadRequest)
+			return
+		}
+	}()
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(available_schedule)
 }
 
 // Reschedule
@@ -132,4 +187,33 @@ func (h *OrderHandler) CreateReschedule(rw http.ResponseWriter, r *http.Request)
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	json.NewEncoder(rw).Encode(updated_pending_order)
+}
+
+// Coupons
+func (h *OrderHandler) GetCouponsHandler(rw http.ResponseWriter, r *http.Request) {
+
+	// validar session
+	cookie, err := r.Cookie(auth_token)
+	if err != nil {
+		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		return
+	}
+
+	tokenString := cookie.Value
+	token, err := jwt.VerfiyToken(tokenString)
+
+	if err != nil {
+		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
+		return
+	}
+
+	available_coupons, err := h.ord_srv.GetCustomerCoupons(h.ctx, int(token.ID))
+	if err != nil {
+		http.Error(rw, "Error obteniendo cupones", http.StatusUnauthorized)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	json.NewEncoder(rw).Encode(available_coupons)
 }
