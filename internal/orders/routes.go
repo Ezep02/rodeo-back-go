@@ -22,7 +22,7 @@ func OrderRoutes(r chi.Router, db *gorm.DB, redis *redis.Client) {
 		r.Post("/new", orderHandler.CreateOrderHandler)
 		r.Post("/webhook", orderHandler.WebHook)
 		r.Get("/pending/{limit}/{offset}", orderHandler.GetBarberPendingOrdersHandler)
-		r.HandleFunc("/notification", handler.HandleConnection)
+		r.HandleFunc("/events", handler.SendOrderEvents)
 	})
 
 	r.Route("/order/customer", func(r chi.Router) {

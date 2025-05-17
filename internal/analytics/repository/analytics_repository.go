@@ -272,6 +272,7 @@ func (r *Analytics_repository) GetMonthlyPopularServices(ctx context.Context) ([
 		AND EXTRACT(MONTH FROM schedule_day_date) = EXTRACT(MONTH FROM CURRENT_DATE) 
 		GROUP BY Service_name 
 		ORDER BY Service_count DESC
+		LIMIT 3
 	`, statusApproved).Scan(&monthlyPopularServices).Error
 
 	if err != nil {

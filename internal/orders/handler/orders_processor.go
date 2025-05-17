@@ -13,7 +13,6 @@ import (
 	"github.com/ezep02/rodeo/internal/orders/models"
 	"github.com/ezep02/rodeo/internal/orders/services"
 	"github.com/ezep02/rodeo/internal/orders/utils"
-	"github.com/gorilla/websocket"
 
 	"github.com/spf13/viper"
 )
@@ -102,7 +101,6 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	log.Println("[ORDER TOKEN]:", orderToken)
 	request, err := helpers.BuildOrderPreference(newOrder, orderToken)
 	if err != nil {
 		http.Error(rw, "Algo salio mal intentando crear la preferencia", http.StatusBadRequest)
@@ -214,12 +212,11 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := sendMessageToPeer(websocket.TextMessage, msgBytes); err != nil {
-		log.Println("Error enviando mensaje al cliente:", err)
-	}
+	// Send real time data using sse
+	PushOrderUpdate(msgBytes)
 
 	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
+	rw.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(rw).Encode("ok")
 }
 

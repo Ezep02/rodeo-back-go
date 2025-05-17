@@ -3,7 +3,6 @@ package helpers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
@@ -87,7 +86,7 @@ func BuildOrderFromWebhook(root map[string]any) (*models.Order, error) {
 }
 
 func BuildOrderPreference(service_order models.ServiceOrder, orderToken string) (models.Request, error) {
-	log.Println("[order token]", orderToken)
+
 	var success_url string = fmt.Sprintf("http://localhost:5173/payment/success/token=%s", orderToken)
 
 	return models.Request{
@@ -124,7 +123,7 @@ func BuildOrderPreference(service_order models.ServiceOrder, orderToken string) 
 				Number: service_order.Payer_phone_number,
 			},
 		},
-		NotificationURL: "https://3786-181-16-121-41.ngrok-free.app/order/webhook",
+		NotificationURL: "https://07fb-181-16-121-41.ngrok-free.app/order/webhook",
 
 		Expires:            true,
 		ExpirationDateFrom: func() *time.Time { now := time.Now(); return &now }(),
