@@ -2,10 +2,7 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
-	"time"
 
 	"github.com/ezep02/rodeo/internal/orders/models"
 	"github.com/redis/go-redis/v9"
@@ -51,7 +48,7 @@ func (or *OrderRepository) CreatingNewOrder(ctx context.Context, order *models.O
 				WHERE id = ?
 			`, false, order.Shift_id).Error; upating_status_err != nil {
 
-				log.Println("[status updated]")
+				log.Println("[SECHEDULE: Error actualizando el estado]")
 				return nil
 			}
 			return nil
@@ -68,13 +65,13 @@ func (r *OrderRepository) GetBarberPendingOrders(ctx context.Context, barberID i
 		barberPendingOrders []models.BarberPendingOrder
 	)
 
-	redisCacheKey := fmt.Sprintf("barber_pending_orders:barber_id-%d", barberID)
+	//redisCacheKey := fmt.Sprintf("barber_pending_orders:barber_id-%d", barberID)
 
-	if ordersInCache, cacheErr := r.RedisConnection.Get(ctx, redisCacheKey).Result(); ordersInCache != "" && cacheErr == nil {
-		// devolver los datos en cache
-		json.Unmarshal([]byte(ordersInCache), &barberPendingOrders)
-		return barberPendingOrders, nil
-	}
+	// if ordersInCache, cacheErr := r.RedisConnection.Get(ctx, redisCacheKey).Result(); ordersInCache != "" && cacheErr == nil {
+	// 	// devolver los datos en cache
+	// 	json.Unmarshal([]byte(ordersInCache), &barberPendingOrders)
+	// 	return barberPendingOrders, nil
+	// }
 
 	// extraer las ordenes penditenes, cuyo dia se despues del dia actual
 	err := r.Connection.WithContext(ctx).Raw(`
@@ -105,10 +102,10 @@ func (r *OrderRepository) GetBarberPendingOrders(ctx context.Context, barberID i
 	}
 
 	// cachear la informacion
-	if pendingOrderBytes, _ := json.Marshal(barberPendingOrders); pendingOrderBytes != nil {
-		r.RedisConnection.Set(ctx, redisCacheKey, pendingOrderBytes, time.Minute*5)
-		return barberPendingOrders, nil
-	}
+	// if pendingOrderBytes, _ := json.Marshal(barberPendingOrders); pendingOrderBytes != nil {
+	// 	r.RedisConnection.Set(ctx, redisCacheKey, pendingOrderBytes, time.Minute*5)
+	// 	return barberPendingOrders, nil
+	// }
 
 	return barberPendingOrders, nil
 }
@@ -120,13 +117,13 @@ func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, user
 		mp_status            string = "approved"
 	)
 
-	customerOrdersCacheKey := fmt.Sprintf("customer_order:id-%d", userID)
+	//customerOrdersCacheKey := fmt.Sprintf("customer_order:id-%d", userID)
 
-	if cachedCustomerPendingOrders, cacheErr := r.RedisConnection.Get(ctx, customerOrdersCacheKey).Result(); cachedCustomerPendingOrders != "" && cacheErr == nil {
-		json.Unmarshal([]byte(cachedCustomerPendingOrders), &customerPendingTurns)
-		log.Println("[cache hit] customer pending orders")
-		return customerPendingTurns, nil
-	}
+	// if cachedCustomerPendingOrders, cacheErr := r.RedisConnection.Get(ctx, customerOrdersCacheKey).Result(); cachedCustomerPendingOrders != "" && cacheErr == nil {
+	// 	json.Unmarshal([]byte(cachedCustomerPendingOrders), &customerPendingTurns)
+	// 	log.Println("[cache hit] customer pending orders")
+	// 	return customerPendingTurns, nil
+	// }
 
 	// No estaba en cache o cache inválida, ir a la DB
 	dbErr := r.Connection.WithContext(ctx).Raw(`
@@ -155,10 +152,10 @@ func (r *OrderRepository) GettingCustomerPendingOrders(ctx context.Context, user
 	}
 
 	// cachear datos
-	if data, _ := json.Marshal(customerPendingTurns); data != nil {
-		r.RedisConnection.Set(ctx, customerOrdersCacheKey, data, 5*time.Minute)
-		return customerPendingTurns, nil
-	}
+	// if data, _ := json.Marshal(customerPendingTurns); data != nil {
+	// 	r.RedisConnection.Set(ctx, customerOrdersCacheKey, data, 5*time.Minute)
+	// 	return customerPendingTurns, nil
+	// }
 
 	return customerPendingTurns, nil
 }

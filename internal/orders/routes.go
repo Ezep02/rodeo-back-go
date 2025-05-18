@@ -17,12 +17,12 @@ func OrderRoutes(r chi.Router, db *gorm.DB, redis *redis.Client) {
 	// Inicializar OrderHandler con el servicio
 	orderHandler := handler.NewOrderHandler(order_srv)
 
-	// Rutas del módulo de autenticacion
+	// Rutas del módulo de ordenes
 	r.Route("/order", func(r chi.Router) {
 		r.Post("/new", orderHandler.CreateOrderHandler)
 		r.Post("/webhook", orderHandler.WebHook)
 		r.Get("/pending/{limit}/{offset}", orderHandler.GetBarberPendingOrdersHandler)
-		r.HandleFunc("/events", handler.SendOrderEvents)
+		r.HandleFunc("/notification", handler.HandleConnection)
 	})
 
 	r.Route("/order/customer", func(r chi.Router) {
@@ -34,5 +34,4 @@ func OrderRoutes(r chi.Router, db *gorm.DB, redis *redis.Client) {
 		r.HandleFunc("/notification", handler.HandleConnection)
 		r.HandleFunc("/notification-coupon", handler.HandleConnection)
 	})
-
 }

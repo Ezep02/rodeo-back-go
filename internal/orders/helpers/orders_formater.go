@@ -123,7 +123,7 @@ func BuildOrderPreference(service_order models.ServiceOrder, orderToken string) 
 				Number: service_order.Payer_phone_number,
 			},
 		},
-		NotificationURL: "https://07fb-181-16-121-41.ngrok-free.app/order/webhook",
+		NotificationURL: "https://2da0-181-16-121-41.ngrok-free.app/order/webhook",
 
 		Expires:            true,
 		ExpirationDateFrom: func() *time.Time { now := time.Now(); return &now }(),
