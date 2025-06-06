@@ -6,10 +6,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/ezep02/rodeo/internal/services/services"
-	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 	"github.com/spf13/viper"
 )
@@ -47,34 +47,41 @@ func NewServiceHandler(srv_service *services.Srv_Service) *Srvs_Handler {
 }
 
 // Servicios para mostrar al cliente
-func (h *Srvs_Handler) GetServices(rw http.ResponseWriter, r *http.Request) {
+func (h *Srvs_Handler) GetServices(w http.ResponseWriter, r *http.Request) {
+	// Ruta esperada: /services/{limit}/{offset}
+	path := strings.TrimPrefix(r.URL.Path, "/services/")
+	parts := strings.Split(path, "/")
 
-	limit := chi.URLParam(r, "limit")
-	offset := chi.URLParam(r, "offset")
+	if len(parts) < 2 {
+		http.Error(w, "Missing limit or offset", http.StatusBadRequest)
+		return
+	}
 
+	limit := parts[0]
+	offset := parts[1]
 	parsedLimit, err := strconv.Atoi(limit)
 	if err != nil {
-		http.Error(rw, "Error parseando parametro", http.StatusBadRequest)
+		http.Error(w, "Error parseando parametro", http.StatusBadRequest)
 		return
 	}
 
 	parsedOffset, err := strconv.Atoi(offset)
 	if err != nil {
-		http.Error(rw, "Error parseando parametro", http.StatusBadRequest)
+		http.Error(w, "Error parseando parametro", http.StatusBadRequest)
 		return
 	}
 
 	services, err := h.Srvs_Service.GetServices(h.Ctx, parsedLimit, parsedOffset)
 
 	if err != nil {
-		http.Error(rw, "Algo salio mal al intentar obtener los servicios", http.StatusBadRequest)
+		http.Error(w, "Algo salio mal al intentar obtener los servicios", http.StatusBadRequest)
 		return
 	}
 
 	// si todo bien, devolves el servicio creado
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(services)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(services)
 }
 
 // GetPopularServices obtiene los servicios populares

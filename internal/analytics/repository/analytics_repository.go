@@ -50,7 +50,7 @@ func (r *Analytics_repository) GetMonthlyRevenueAndAvgComparedToLastMonth(ctx co
 		tx.Transaction(func(txSum *gorm.DB) error {
 			if sumErr := txSum.Raw(`
 				SELECT SUM(price) AS Revenue FROM orders 
-				WHERE MONTH(schedule_day_date) = MONTH(CURRENT_DATE) AND mp_status = ?`, statusApproved).Scan(&totalRevenue); sumErr != nil {
+				WHERE MONTH(schedule_day_date) = MONTH(CURRENT_DATE)`).Scan(&totalRevenue); sumErr != nil {
 				return sumErr.Error
 			}
 
@@ -60,11 +60,14 @@ func (r *Analytics_repository) GetMonthlyRevenueAndAvgComparedToLastMonth(ctx co
 		// Obtener el promedio de ingresos del mes actual comparado al anterior
 		tx.Transaction(func(txAvg *gorm.DB) error {
 			if avgErr := txAvg.Raw(`
-				SELECT 
-        			AVG(CASE WHEN MONTH(schedule_day_date) = MONTH(CURRENT_DATE) THEN COALESCE(price, 0) END) - 
-        			AVG(CASE WHEN MONTH(schedule_day_date) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) THEN COALESCE(price, 0) END) AS diferencia_promedios
-    			FROM orders
-    			WHERE mp_status = ?`, statusApproved).Scan(&avgComparedLastMonth); avgErr != nil {
+				SELECT
+					COALESCE(
+						AVG(CASE WHEN MONTH(schedule_day_date) = MONTH(CURRENT_DATE) THEN COALESCE(price, 0) END) -
+						AVG(CASE WHEN MONTH(schedule_day_date) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) THEN COALESCE(price, 0) END),
+						0
+					) AS diferencia_promedios
+				FROM orders
+				WHERE mp_status = ?`, statusApproved).Scan(&avgComparedLastMonth); avgErr != nil {
 				return avgErr.Error
 			}
 			return nil

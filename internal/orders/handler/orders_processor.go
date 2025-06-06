@@ -150,17 +150,18 @@ func (orh *OrderHandler) CreateOrderHandler(rw http.ResponseWriter, r *http.Requ
 	json.NewEncoder(rw).Encode(responseBody)
 }
 
-func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
+func (h *OrderHandler) WebHook(w http.ResponseWriter, r *http.Request) {
 	var bodyPayment map[string]any
+
 	if err := json.NewDecoder(r.Body).Decode(&bodyPayment); err != nil {
 		log.Println("Error decodificando el cuerpo del webhook:", err)
-		http.Error(rw, "JSON inválido", http.StatusBadRequest)
+		http.Error(w, "JSON inválido", http.StatusBadRequest)
 		return
 	}
 
 	data, ok := bodyPayment["data"].(map[string]any)
 	if !ok {
-		http.Error(rw, "Campo 'data' inválido", http.StatusBadRequest)
+		http.Error(w, "Campo 'data' inválido", http.StatusBadRequest)
 		return
 	}
 
@@ -170,7 +171,7 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Println("Error creando solicitud GET:", err)
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -180,7 +181,7 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 	resp, err := (&http.Client{}).Do(req)
 	if err != nil {
 		log.Println("Error haciendo solicitud a MercadoPago:", err)
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
@@ -188,40 +189,38 @@ func (orh *OrderHandler) WebHook(rw http.ResponseWriter, r *http.Request) {
 	var root map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&root); err != nil {
 		log.Println("Error decodificando respuesta de MercadoPago:", err)
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	order, err := helpers.BuildOrderFromWebhook(root)
 	if err != nil {
 		log.Println("Error formateando respuesta de MercadoPago:", err)
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	newOrder, err := orh.ord_srv.CreateNewOrder(orh.ctx, order)
+	newOrder, err := h.ord_srv.CreateNewOrder(h.ctx, order)
 
 	if err != nil {
-		http.Error(rw, "No se creó la orden", http.StatusBadRequest)
+		http.Error(w, "No se creó la orden", http.StatusBadRequest)
 		return
 	}
 
-	msgBytes, err := json.Marshal(newOrder)
+	msgBytes, err := json.Marshal(order)
 	if err != nil {
-		log.Println("Error al serializar la orden:", err)
-		http.Error(rw, "Error al procesar la orden", http.StatusInternalServerError)
+		http.Error(w, "Error al procesar la orden", http.StatusInternalServerError)
 		return
 	}
 
+	// Enviar sin bloquear el handler
 	if err := sendMessageToPeer(websocket.TextMessage, msgBytes); err != nil {
 		log.Println("Error enviando mensaje al cliente:", err)
 	}
 
-	// Send real time data using sse
-
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(rw).Encode("ok")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(newOrder)
 }
 
 func (orh *OrderHandler) Failure(w http.ResponseWriter, r *http.Request) {

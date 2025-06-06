@@ -15,13 +15,15 @@ type RefundRequest struct {
 // DISCOUNT CARD
 
 type Coupon struct {
-	Code            string     `db:"code" json:"code"`
-	UserID          int        `db:"user_id" json:"user_id"`
-	DiscountPercent float64    `db:"discount_percent" json:"discount_percent"`
-	Available       bool       `db:"available" json:"available"`
-	Used            bool       `db:"used" json:"used"`
-	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
-	AvailableToDate time.Time  `db:"available_to_date" json:"available_to_date"`
-	UsedAt          *time.Time `db:"used_at" json:"used_at,omitempty"`
-	Coupon_type     string     `db:"coupon_type" json:"type"`
+	Code              string     `json:"code"`
+	UserID            int        `json:"user_id"`
+	Refunded_order_id int        `json:"refunded_order_id"`
+	DiscountPercent   float64    `json:"discount_percent"`
+	Available         bool       `json:"available"`
+	Used              bool       `json:"used"`
+	CreatedAt         time.Time  `json:"created_at"`
+	AvailableToDate   time.Time  `json:"available_to_date"`
+	UsedAt            *time.Time `json:"used_at"`
+	Coupon_type       string     `json:"coupon_type"`
+	Transaction_type  string     `json:"transaction_type"`
 }

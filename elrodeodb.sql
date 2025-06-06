@@ -26,6 +26,7 @@ CREATE TABLE services (
   created_by_id INT UNSIGNED NOT NULL,
   service_duration INT DEFAULT NULL,
   preview_url TEXT DEFAULT NULL,
+  category VARCHAR(40) NOT NULL,
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT NULL,
   deleted_at TIMESTAMP DEFAULT NULL,
@@ -52,13 +53,26 @@ CREATE TABLE orders (
     created_by_id INT UNSIGNED NOT NULL,
 	shift_id INT UNSIGNED NOT NULL,
 	schedule_day_date datetime not null,
-    schedule_start_time VARCHAR(50) NOT NULL, 
+    schedule_start_time VARCHAR(50) NOT NULL,
+    transaction_type VARCHAR(60) NOT NULL, 
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP DEFAULT NULL,
     PRIMARY KEY (id),
     FOREIGN KEY (service_id) REFERENCES services(id),
     FOREIGN KEY (created_by_id) REFERENCES users(id) 
+);
+
+CREATE TABLE reviews (
+    order_id INT UNSIGNED NOT NULL,
+    schedule_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    rating TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    review_status BOOLEAN DEFAULT TRUE,
+    comment TEXT,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (order_id, schedule_id, user_id)
 );
 
 Create TABLE schedules (
@@ -75,19 +89,6 @@ Create TABLE schedules (
     FOREIGN KEY (barber_id) REFERENCES users(id)
 );
 
-Create table expenses (
-	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-	created_by_name varchar(50) not null,
-    admin_id INT UNSIGNED NOT NULL,
-    title varchar(150) not null,
-	description TEXT DEFAULT NULL,
-    amount DECIMAL(12, 0) NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP NULL,
-	PRIMARY KEY (id),
-    FOREIGN KEY (admin_id) REFERENCES users(id)
-);
 
 
 CREATE TABLE coupons (
@@ -97,8 +98,12 @@ CREATE TABLE coupons (
     available BOOLEAN DEFAULT true,
     used BOOLEAN DEFAULT false,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    transaction_type VARCHAR(60) NOT NULL, 
     available_to_date DATETIME NOT NULL,
     used_at DATETIME default NULL,
     coupon_type ENUM('reembolso', 'promo'),
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+
+

@@ -236,9 +236,45 @@ func (r *OrderRepository) GettingCustomerCoupons(ctx context.Context, user_id in
 		WHERE user_id = ? 
 		AND available_to_date >= CURRENT_DATE 
 		AND available = ?
+		LIMIT 10
 	`, user_id, true).Scan(&available_coupons).Error; err != nil {
 		return nil, err
 	}
 
 	return available_coupons, nil
+}
+
+// Get customer previous orders
+func (r *OrderRepository) GettingCustomerPreviusOrders(ctx context.Context, user_id int, offset int) (*[]models.CustomerPreviusOrders, error) {
+	var previousOrders *[]models.CustomerPreviusOrders
+
+	query := `
+		SELECT 
+			o.id,
+			o.shift_id,
+			o.title,
+			o.schedule_day_date,
+			o.schedule_start_time,
+			o.payer_name,
+			o.payer_surname,
+			o.price,
+			COALESCE(r.comment, '') AS comment,
+			COALESCE(r.rating, 0) AS rating,
+			COALESCE(r.review_status, 0) AS review_status
+		FROM orders o
+		LEFT JOIN reviews r 
+			ON r.order_id = o.id 
+			AND r.schedule_id = o.shift_id 
+			AND r.user_id = ?
+		WHERE o.user_id = ?
+		ORDER BY o.schedule_day_date DESC
+		LIMIT 5 OFFSET ?
+	`
+
+	if err := r.Connection.WithContext(ctx).Raw(query, user_id, user_id, offset).Scan(&previousOrders).Error; err != nil {
+		log.Println("Error obteniendo las reviews:", err)
+		return nil, err
+	}
+
+	return previousOrders, nil
 }

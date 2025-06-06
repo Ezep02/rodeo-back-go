@@ -28,13 +28,15 @@ func CouponFormater(refound_data models.RefundRequest, user_id int) (models.Coup
 	code := GenerateCouponCode(10)
 
 	return models.Coupon{
-		Code:            strings.ToUpper(code),
-		UserID:          user_id,
-		DiscountPercent: refound_data.Refund_percentaje,
-		Available:       true,
-		Used:            false,
-		CreatedAt:       time.Now(),
-		AvailableToDate: time.Now().AddDate(0, 0, 7),
-		Coupon_type:     refound_data.Refund_type,
+		Code:              strings.ToUpper(code),
+		UserID:            user_id,
+		DiscountPercent:   refound_data.Refund_percentaje,
+		Available:         true,
+		Used:              false,
+		CreatedAt:         time.Now(),
+		AvailableToDate:   time.Now().AddDate(0, 0, 7),
+		Coupon_type:       refound_data.Refund_type,
+		Transaction_type:  "refund",
+		Refunded_order_id: refound_data.Order_id,
 	}, nil
 }

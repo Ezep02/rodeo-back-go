@@ -12,8 +12,13 @@ type Service struct {
 }
 
 type PopularServices struct {
-	Title     string  `json:"title"`
-	Total_avg float64 `json:"total_avg"`
+	Title       string  `json:"title"`
+	Total_avg   float64 `json:"total_avg"`
+	Description string  `json:"description"`
+	Duration    int     `json:"service_duration"`
+	Price       float64 `json:"price"`
+	Rating      float64 `json:"rating"`
+	Preview_url string  `json:"preview_url"`
 }
 
 type ServiceRequest struct {

@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Verificar variables de entorno
+dir=$(pwd)
+
+echo "==> Checking enviroment"
+if [ ! -f ".env" ]; then
+  echo "❌ No se encontró .env en el directorio actual: $dir"
+  exit 1
+else 
+  echo "✅ Variables de entorno activas"
+fi 
+
+## Bring up docker-compose
+echo "==> Checking active Docker containers"
+
+containers=("redis" "elrodeodb")
+
+# bandera para saber si falta alguno
+need_start=false
+
+for name in "${containers[@]}"; do
+  if ! docker ps --format '{{.Names}}' | grep -qw "$name"; then
+    echo "⛔ Contenedor '$name' no esta activo."
+    need_start=true
+  else
+    echo "✅ Contenedor '$name' ya esta corriendo."
+  fi
+done  
+
+if [ "$need_start" = true ]; then
+  echo "🚀 Iniciando docker-compose..."
+  docker-compose -f dev/docker-compose.yml up -d
+else
+  echo "✅ Todos los contenedores estan activos. No se necesita reiniciar."
+fi
+
+# Levantar configuracion de ngrok
+ngrok_is_active=false
+
+while [ "$ngrok_is_active" != true ]; do
+    read -rp "==> ¿Ngrok esta activo? [SI para continuar]: " line
+    if [ "$line" = "SI" ]; then
+        ngrok_is_active=true
+    fi
+done
+
+# Run main.go
+echo "==> Running main.."
+
+go run "./cmd/main.go"
+
+

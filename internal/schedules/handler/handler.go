@@ -6,10 +6,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/ezep02/rodeo/internal/schedules/services"
-	"github.com/go-chi/chi/v5"
 	"github.com/spf13/viper"
 
 	"github.com/gorilla/websocket"
@@ -48,16 +48,27 @@ func NewSchedulHandler(sch_srv *services.ScheduleService) *ScheduleHandler {
 	}
 }
 
-func (sch_h *ScheduleHandler) GetAvailableSchedulesHandler(rw http.ResponseWriter, r *http.Request) {
+func (sch_h *ScheduleHandler) GetAvailableSchedulesHandler(w http.ResponseWriter, r *http.Request) {
 
-	limit := chi.URLParam(r, "limit")
-	offset := chi.URLParam(r, "offset")
+	// Extraer limit y offset desde la URL
+	path := strings.TrimPrefix(r.URL.Path, "/schedules/available/")
+	parts := strings.Split(path, "/")
+
+	if len(parts) < 2 {
+		http.Error(w, "Missing limit or offset", http.StatusBadRequest)
+		return
+	}
+
+	limit := parts[0]
+	offset := parts[1]
+
+	log.Println("limit / offset", limit, offset)
 
 	parsedLimit, err := strconv.Atoi(limit)
 
 	if err != nil {
 		log.Println("Parsing error")
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -65,7 +76,7 @@ func (sch_h *ScheduleHandler) GetAvailableSchedulesHandler(rw http.ResponseWrite
 
 	if err != nil {
 		log.Println("Parsing error")
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -73,13 +84,13 @@ func (sch_h *ScheduleHandler) GetAvailableSchedulesHandler(rw http.ResponseWrite
 
 	if err != nil {
 		log.Println("error searching schedules")
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	rw.Header().Set("Content-type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(availableSchedules)
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(availableSchedules)
 }
 
 // HandleConnection gestiona una conexión WebSocket

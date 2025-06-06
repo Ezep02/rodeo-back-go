@@ -21,7 +21,7 @@ func (s *Srv_Service) CreateService(ctx context.Context, service *models.Service
 	return s.Srv_Repository.CreateNewService(ctx, service)
 }
 
-func (s *Srv_Service) GetServices(ctx context.Context, limit int, offset int) (*[]models.Service, error) {
+func (s *Srv_Service) GetServices(ctx context.Context, limit int, offset int) (*[]models.CustomerServices, error) {
 	return s.Srv_Repository.GetServices(ctx, limit, offset)
 }
 

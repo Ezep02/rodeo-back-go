@@ -53,9 +53,9 @@ type Metadata struct {
 }
 
 type BackURLs struct {
-	Success string `json:"success"`
 	Failure string `json:"failure"`
 	Pending string `json:"pending"`
+	Success string `json:"success"`
 }
 
 type Request struct {
@@ -106,4 +106,5 @@ type Order struct {
 	Schedule_day_date   *time.Time `json:"schedule_day_date"`
 	Service_duration    int        `json:"service_duration"`
 	Schedule_start_time string     `json:"schedule_start_time"`
+	Transaction_type    string     `json:"transaction_type"`
 }

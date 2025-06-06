@@ -44,6 +44,11 @@ func (s *OrderService) UpdateScheduleOrder(ctx context.Context, schedule models.
 	return s.OrderRepo.ReschedulingDateTimeOrder(ctx, schedule, user_id)
 }
 
+// Obtener los turnos anteriores
+func (s *OrderService) GetCustomerPreviusOrders(ctx context.Context, user_id int, offset int) (*[]models.CustomerPreviusOrders, error) {
+	return s.OrderRepo.GettingCustomerPreviusOrders(ctx, user_id, offset)
+}
+
 // Refound
 func (s *OrderService) NewRefound(ctx context.Context, refund models.RefundRequest) (*models.UpdatedCustomerPendingOrder, error) {
 	return s.OrderRepo.CreatingRefund(ctx, refund)

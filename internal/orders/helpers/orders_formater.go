@@ -80,6 +80,7 @@ func BuildOrderFromWebhook(root map[string]any) (*models.Order, error) {
 		Schedule_day_date:   &scheduleDate,
 		Created_by_id:       int(getFloat(metadata, "created_by_id")),
 		Shift_id:            int(getFloat(metadata, "shift_id")),
+		Transaction_type:    "order",
 	}
 
 	return order, nil
@@ -89,11 +90,12 @@ func BuildOrderPreference(service_order models.ServiceOrder, orderToken string) 
 
 	var success_url string = fmt.Sprintf("http://localhost:5173/payment/success/token=%s", orderToken)
 
+	// TODO: Agregar url con https, sino no va a funcionar -> backsURL
 	return models.Request{
 		BackURLs: models.BackURLs{
 			Success: success_url,
-			Pending: "http://localhost:8080/payment/pending",
-			Failure: "http://localhost:8080/payment/failure",
+			Pending: "http://localhost:5473/payment/pending",
+			Failure: "http://localhost:5473/payment/failure",
 		},
 
 		Items: []models.Item{
@@ -123,7 +125,7 @@ func BuildOrderPreference(service_order models.ServiceOrder, orderToken string) 
 				Number: service_order.Payer_phone_number,
 			},
 		},
-		NotificationURL: "https://2da0-181-16-121-41.ngrok-free.app/order/webhook",
+		NotificationURL: "https://f382-181-16-121-41.ngrok-free.app/order/webhook",
 
 		Expires:            true,
 		ExpirationDateFrom: func() *time.Time { now := time.Now(); return &now }(),

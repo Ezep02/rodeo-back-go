@@ -5,10 +5,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/ezep02/rodeo/internal/services/models"
 	"github.com/ezep02/rodeo/pkg/jwt"
-	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
 )
@@ -79,25 +79,35 @@ func (h *Srvs_Handler) CreateService(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode("Servicio creado correctamente")
 }
 
-func (h *Srvs_Handler) GetBarberServices(rw http.ResponseWriter, r *http.Request) {
-	limit := chi.URLParam(r, "limit")
-	offset := chi.URLParam(r, "offset")
+func (h *Srvs_Handler) GetBarberServices(w http.ResponseWriter, r *http.Request) {
+	// Ruta esperada: /services/barber/{limit}/{offset}
+	path := strings.TrimPrefix(r.URL.Path, "/services/barber/")
+	parts := strings.Split(path, "/")
+
+	if len(parts) < 2 {
+		http.Error(w, "Missing limit or offset", http.StatusBadRequest)
+		return
+	}
+
+	limit := parts[0]
+	offset := parts[1]
+
 	parsedLimit, err := strconv.Atoi(limit)
 	if err != nil {
-		http.Error(rw, "Error parseando parametro", http.StatusBadRequest)
+		http.Error(w, "Error parseando parametro", http.StatusBadRequest)
 		return
 	}
 
 	parsedOffset, err := strconv.Atoi(offset)
 	if err != nil {
-		http.Error(rw, "Error parseando parametro", http.StatusBadRequest)
+		http.Error(w, "Error parseando parametro", http.StatusBadRequest)
 		return
 	}
 
 	cookie, err := r.Cookie(auth_token)
 
 	if err != nil {
-		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		http.Error(w, "No token provided", http.StatusUnauthorized)
 		return
 	}
 	// Validar el token
@@ -105,30 +115,30 @@ func (h *Srvs_Handler) GetBarberServices(rw http.ResponseWriter, r *http.Request
 	token, err := jwt.VerfiyToken(tokenString)
 
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	if !token.Is_barber {
-		http.Error(rw, "Usuario no autorizado", http.StatusUnauthorized)
+		http.Error(w, "Usuario no autorizado", http.StatusUnauthorized)
 		return
 	}
 	service, err := h.Srvs_Service.GetBarberServices(h.Ctx, parsedLimit, parsedOffset, int(token.ID))
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	// si todo bien, devolves el servicio creado
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(service)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(service)
 }
 
-func (h *Srvs_Handler) UpdateServices(rw http.ResponseWriter, r *http.Request) {
+func (h *Srvs_Handler) UpdateServices(w http.ResponseWriter, r *http.Request) {
 	var srv models.Service
 
 	if err := json.NewDecoder(r.Body).Decode(&srv); err != nil {
-		http.Error(rw, "No se pudo parsear correctamente el cuerpo de la peticion", http.StatusBadRequest)
+		http.Error(w, "No se pudo parsear correctamente el cuerpo de la peticion", http.StatusBadRequest)
 		log.Printf("[Error] %s", err.Error())
 		return
 	}
@@ -138,7 +148,7 @@ func (h *Srvs_Handler) UpdateServices(rw http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("auth_token")
 
 	if err != nil {
-		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		http.Error(w, "No token provided", http.StatusUnauthorized)
 		return
 	}
 	// Validar el token
@@ -146,17 +156,25 @@ func (h *Srvs_Handler) UpdateServices(rw http.ResponseWriter, r *http.Request) {
 	token, err := jwt.VerfiyToken(tokenString)
 
 	if err != nil {
-		http.Error(rw, "No se pudo verificar el token", http.StatusUnauthorized)
+		http.Error(w, "No se pudo verificar el token", http.StatusUnauthorized)
 		return
 	}
 
 	if !token.Is_barber {
 		log.Println(token.Is_barber)
-		http.Error(rw, "Solamente un barbero puede actualizar esta informacion", http.StatusUnauthorized)
+		http.Error(w, "Solamente un barbero puede actualizar esta informacion", http.StatusUnauthorized)
 		return
 	}
 
-	srv_id := chi.URLParam(r, "id")
+	path := strings.TrimPrefix(r.URL.Path, "/services/update/")
+	parts := strings.Split(path, "/")
+
+	if len(parts) < 1 {
+		http.Error(w, "Missing limit or offset", http.StatusBadRequest)
+		return
+	}
+
+	srv_id := parts[0]
 
 	values := models.Service{
 		Model: gorm.Model{
@@ -171,7 +189,7 @@ func (h *Srvs_Handler) UpdateServices(rw http.ResponseWriter, r *http.Request) {
 
 	updatedService, err := h.Srvs_Service.UpdateService(h.Ctx, &values, srv_id)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	// log.Println("updated service", updatedService)
@@ -179,7 +197,7 @@ func (h *Srvs_Handler) UpdateServices(rw http.ResponseWriter, r *http.Request) {
 	msg, err := json.Marshal(updatedService)
 	if err != nil {
 		log.Println("Error al parsear la informacion")
-		http.Error(rw, "Error parseando el mensaje", http.StatusExpectationFailed)
+		http.Error(w, "Error parseando el mensaje", http.StatusExpectationFailed)
 		return
 	}
 
@@ -187,24 +205,22 @@ func (h *Srvs_Handler) UpdateServices(rw http.ResponseWriter, r *http.Request) {
 	err = sendUpdatedData(websocket.TextMessage, msg)
 	if err != nil {
 		log.Println("Error al enviar mensaje al cliente:", err.Error())
-		http.Error(rw, "Error interno al procesar la orden", http.StatusInternalServerError)
+		http.Error(w, "Error interno al procesar la orden", http.StatusInternalServerError)
 		return
 	}
 
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode("Servicio correctamente actualizado")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode("Servicio correctamente actualizado")
 }
 
 // Delete service by ID
-func (h *Srvs_Handler) DeleteServiceByID(rw http.ResponseWriter, r *http.Request) {
-
-	srv_id := chi.URLParam(r, "id")
+func (h *Srvs_Handler) DeleteServiceByID(w http.ResponseWriter, r *http.Request) {
 
 	cookie, err := r.Cookie("auth_token")
 
 	if err != nil {
-		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		http.Error(w, "No token provided", http.StatusUnauthorized)
 		return
 	}
 	// Validar el token
@@ -213,28 +229,37 @@ func (h *Srvs_Handler) DeleteServiceByID(rw http.ResponseWriter, r *http.Request
 
 	if err != nil {
 		log.Printf("[TOKEN] no se pudo verificar el token, %s", err.Error())
-		http.Error(rw, err.Error(), http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	if !token.Is_barber {
-		http.Error(rw, "Usuario no autorizado", http.StatusUnauthorized)
+		http.Error(w, "Usuario no autorizado", http.StatusUnauthorized)
 		return
 	}
 
-	parsedID, err := strconv.Atoi(srv_id)
+	path := strings.TrimPrefix(r.URL.Path, "/services/delete/")
+	parts := strings.Split(path, "/")
+
+	if len(parts) < 1 {
+		http.Error(w, "Missing id", http.StatusBadRequest)
+		return
+	}
+	srv_id := parts[0]
+
+	parsedLimit, err := strconv.Atoi(srv_id)
 
 	if err != nil {
-		http.Error(rw, "Error parseando el service id", http.StatusConflict)
+		http.Error(w, "Error parseando el service id", http.StatusConflict)
 		return
 	}
 
-	if err := h.Srvs_Service.DeleteServiceByID(h.Ctx, parsedID); err != nil {
-		http.Error(rw, "No se pudo completar la eliminacion, vuelva a intentarlo", http.StatusExpectationFailed)
+	if err := h.Srvs_Service.DeleteServiceByID(h.Ctx, parsedLimit); err != nil {
+		http.Error(w, "No se pudo completar la eliminacion, vuelva a intentarlo", http.StatusExpectationFailed)
 		return
 	}
 
-	rw.Header().Set("Content-type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode("Eliminado correctamente")
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode("Eliminado correctamente")
 }

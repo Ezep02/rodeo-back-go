@@ -25,6 +25,8 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+// TODO: crear un handle connection para refounds
+
 // HandleConnection gestiona conexión WebSocket
 func HandleConnection(rw http.ResponseWriter, r *http.Request) {
 	// Actualizar a WebSocket
@@ -46,7 +48,6 @@ func HandleConnection(rw http.ResponseWriter, r *http.Request) {
 	for {
 		messageType, msg, err := ws.ReadMessage()
 		if err != nil {
-			log.Println("Error leyendo mensaje:", err.Error())
 			break
 		}
 

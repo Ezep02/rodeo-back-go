@@ -4,17 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/ezep02/rodeo/pkg/jwt"
-	"github.com/go-chi/chi/v5"
 )
 
-func (orh *OrderHandler) GetBarberPendingOrdersHandler(rw http.ResponseWriter, r *http.Request) {
+func (orh *OrderHandler) GetBarberPendingOrdersHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Validar el token
 	cookie, err := r.Cookie(auth_token)
 	if err != nil {
-		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		http.Error(w, "No token provided", http.StatusUnauthorized)
 		return
 	}
 
@@ -22,29 +22,49 @@ func (orh *OrderHandler) GetBarberPendingOrdersHandler(rw http.ResponseWriter, r
 	token, err := jwt.VerfiyToken(tokenString)
 
 	if err != nil {
-		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
+		http.Error(w, "Error al verificar el token", http.StatusBadRequest)
 		return
 	}
 
 	if !token.Is_barber {
-		http.Error(rw, "Usuario no autorizado", http.StatusUnauthorized)
+		http.Error(w, "Usuario no autorizado", http.StatusUnauthorized)
 		return
 	}
 
-	lmt := chi.URLParam(r, "limit")
-	off := chi.URLParam(r, "offset")
+	// Obtener limit y offset desde la url
+	path := strings.TrimPrefix(r.URL.Path, "/order/pending/")
+	parts := strings.Split(path, "/")
 
-	limit, _ := strconv.Atoi(lmt)
-	offset, _ := strconv.Atoi(off)
+	if len(parts) < 2 {
+		http.Error(w, "Missing limit or offset", http.StatusBadRequest)
+		return
+	}
+
+	limit := parts[0]
+	offset := parts[1]
+
+	// parsing
+	parsedLimit, err := strconv.Atoi(limit)
+	if err != nil {
+		http.Error(w, "Error parseando dato", http.StatusConflict)
+		return
+	}
+
+	parsetOffset, err := strconv.Atoi(offset)
+	if err != nil {
+		http.Error(w, "Error parseando dato", http.StatusConflict)
+		return
+	}
+
 	// si todo bien, se solicitan las ordenes
-	orders, err := orh.ord_srv.GetOrderService(orh.ctx, int(token.ID), limit, offset)
+	orders, err := orh.ord_srv.GetOrderService(orh.ctx, int(token.ID), parsedLimit, parsetOffset)
 
 	if err != nil {
-		http.Error(rw, "Error al obtener las ordenes", http.StatusBadRequest)
+		http.Error(w, "Error al obtener las ordenes", http.StatusBadRequest)
 		return
 	}
 
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(orders)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(orders)
 }

@@ -10,7 +10,6 @@ import (
 
 	"github.com/ezep02/rodeo/internal/schedules/models"
 	"github.com/ezep02/rodeo/pkg/jwt"
-	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 )
 
@@ -125,51 +124,58 @@ func (sch *ScheduleHandler) BarberSchedulesHandler(rw http.ResponseWriter, r *ht
 
 }
 
-func (sch_h *ScheduleHandler) GetBarberSchedulesHandler(rw http.ResponseWriter, r *http.Request) {
+func (sch_h *ScheduleHandler) GetBarberSchedulesHandler(w http.ResponseWriter, r *http.Request) {
 
 	cookie, err := r.Cookie(auth_token)
 
 	if err != nil {
-		http.Error(rw, "No token provided", http.StatusUnauthorized)
+		http.Error(w, "No token provided", http.StatusUnauthorized)
 		return
 	}
 	// Validar el token
 	tokenString := cookie.Value
 	token, err := jwt.VerfiyToken(tokenString)
 	if err != nil {
-		http.Error(rw, "Error al verificar el token", http.StatusBadRequest)
+		http.Error(w, "Error al verificar el token", http.StatusBadRequest)
 		return
 	}
 
 	if !token.Is_barber {
-		http.Error(rw, "Barbero no autorizado", http.StatusUnauthorized)
+		http.Error(w, "Barbero no autorizado", http.StatusUnauthorized)
 		return
 	}
 
-	limit := chi.URLParam(r, "limit")
+	// Ruta esperada: /services/barber/{limit}/{offset}
+	path := strings.TrimPrefix(r.URL.Path, "/schedules/barber/")
+	parts := strings.Split(path, "/")
+
+	if len(parts) < 2 {
+		http.Error(w, "Missing limit or offset", http.StatusBadRequest)
+		return
+	}
+
+	limit := parts[0]
+	offset := parts[1]
 
 	parsedLimit, err := strconv.Atoi(limit)
 	if err != nil {
-		http.Error(rw, "Error parseando dato", http.StatusConflict)
+		http.Error(w, "Error parseando dato", http.StatusConflict)
 		return
 	}
 
-	offset := chi.URLParam(r, "offset")
-
 	parsetOffset, err := strconv.Atoi(offset)
-
 	if err != nil {
-		http.Error(rw, "Error parseando dato", http.StatusConflict)
+		http.Error(w, "Error parseando dato", http.StatusConflict)
 		return
 	}
 
 	schedulesList, err := sch_h.Sch_serv.GetBarberSchedules(sch_h.Ctx, int(token.ID), parsedLimit, parsetOffset)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(schedulesList)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(schedulesList)
 }
