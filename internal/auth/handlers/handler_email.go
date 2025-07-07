@@ -3,15 +3,12 @@ package handlers
 import (
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/smtp"
-	"time"
 
 	"github.com/ezep02/rodeo/internal/auth/models"
-	"github.com/ezep02/rodeo/pkg/jwt"
 )
 
 func (h *AuthHandler) SendResetUserPasswordEmailHandler(rw http.ResponseWriter, r *http.Request) {
@@ -38,20 +35,20 @@ func (h *AuthHandler) SendResetUserPasswordEmailHandler(rw http.ResponseWriter, 
 		return
 	}
 
-	user, err := h.AuthServ.SearchUserByEmail(h.ctx, u.Email)
+	// user, err := h.AuthServ.SearchUserByEmail(h.ctx, u.Email)
 
-	if err != nil {
-		http.Error(rw, "Si el correo es válido, recibirás un email con instrucciones.", http.StatusInternalServerError)
-		return
-	}
+	// if err != nil {
+	// 	http.Error(rw, "Si el correo es válido, recibirás un email con instrucciones.", http.StatusInternalServerError)
+	// 	return
+	// }
 
 	// crear un token utilizando los datos de user
-	tokenString, err := jwt.GenerateToken(user.ID, user.Is_admin, user.Name, user.Email, user.Surname, user.Phone_number, user.Is_barber, time.Now().Add(15*time.Minute))
+	// tokenString, err := jwt.GenerateToken(user.ID, user.Is_admin, user.Name, user.Email, user.Surname, user.Phone_number, user.Is_barber, time.Now().Add(15*time.Minute))
 
-	if err != nil {
-		http.Error(rw, "[Creacion token] Algo salio mal, vuelve a intentarlo mas tarde", http.StatusInternalServerError)
-		return
-	}
+	// if err != nil {
+	// 	http.Error(rw, "[Creacion token] Algo salio mal, vuelve a intentarlo mas tarde", http.StatusInternalServerError)
+	// 	return
+	// }
 
 	// Autenticación con el servidor
 	auth := smtp.PlainAuth("", sender, password, smtpHost)
@@ -93,24 +90,24 @@ func (h *AuthHandler) SendResetUserPasswordEmailHandler(rw http.ResponseWriter, 
 		log.Fatal(err)
 	}
 
-	msg := fmt.Sprintf("Subject: 🔐 Recupera tu contraseña\r\n"+
-		"MIME-Version: 1.0\r\n"+
-		"Content-Type: text/html; charset=\"UTF-8\"\r\n"+
-		"\r\n"+
-		"<html><body>"+
-		"<h2>🔐 Recuperación de contraseña</h2>"+
-		"<p>Hola,</p>"+
-		"<p>Has solicitado restablecer tu contraseña. Haz clic en el botón de abajo:</p>"+
-		"<a href='http://localhost:5173/auth/recover/token=%s' "+
-		"style='display:inline-block;background-color:#007bff;color:#ffffff;padding:10px 20px;text-decoration:none;border-radius:5px;'>Restablecer contraseña</a>"+
-		"<p>Si no solicitaste esto, ignora este mensaje.</p>"+
-		"<p>Saludos,<br>Equipo de Soporte</p>"+
-		"</body></html>", tokenString)
+	// msg := fmt.Sprintf("Subject: 🔐 Recupera tu contraseña\r\n"+
+	// 	"MIME-Version: 1.0\r\n"+
+	// 	"Content-Type: text/html; charset=\"UTF-8\"\r\n"+
+	// 	"\r\n"+
+	// 	"<html><body>"+
+	// 	"<h2>🔐 Recuperación de contraseña</h2>"+
+	// 	"<p>Hola,</p>"+
+	// 	"<p>Has solicitado restablecer tu contraseña. Haz clic en el botón de abajo:</p>"+
+	// 	"<a href='http://localhost:5173/auth/recover/token=%s' "+
+	// 	"style='display:inline-block;background-color:#007bff;color:#ffffff;padding:10px 20px;text-decoration:none;border-radius:5px;'>Restablecer contraseña</a>"+
+	// 	"<p>Si no solicitaste esto, ignora este mensaje.</p>"+
+	// 	"<p>Saludos,<br>Equipo de Soporte</p>"+
+	// 	"</body></html>", tokenString)
 
-	_, err = wc.Write([]byte(msg))
-	if err != nil {
-		log.Fatal(err)
-	}
+	// _, err = wc.Write([]byte(msg))
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 	err = wc.Close()
 	if err != nil {
 		log.Fatal(err)

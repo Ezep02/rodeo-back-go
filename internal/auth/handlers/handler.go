@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/ezep02/rodeo/internal/auth/models"
 	"github.com/ezep02/rodeo/internal/auth/services"
@@ -123,23 +122,23 @@ func (h *AuthHandler) RegisterUserHandler(rw http.ResponseWriter, r *http.Reques
 	}
 
 	// si el registro fue exitoso, se crea un token
-	tokenString, err := jwt.GenerateToken(user.ID, user.Is_admin, user.Name, user.Email, user.Surname, user.Phone_number, user.Is_barber, time.Now().Add(24*time.Hour))
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
+	// tokenString, err := jwt.GenerateToken(user.ID, user.Is_admin, user.Name, user.Email, user.Surname, user.Phone_number, user.Is_barber, time.Now().Add(24*time.Hour))
+	// if err != nil {
+	// 	http.Error(rw, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
 
 	// Establece la cookie con el token
-	http.SetCookie(rw, &http.Cookie{
-		Name:     auth_token,
-		Value:    tokenString,
-		Expires:  time.Now().Add(24 * time.Hour * 30),
-		Domain:   "", // Usa el dominio actual por defecto
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   false, // Cambiar a true si se usa HTTPS
-		Path:     "/",
-	})
+	// http.SetCookie(rw, &http.Cookie{
+	// 	Name:     auth_token,
+	// 	Value:    tokenString,
+	// 	Expires:  time.Now().Add(24 * time.Hour * 30),
+	// 	Domain:   "", // Usa el dominio actual por defecto
+	// 	HttpOnly: true,
+	// 	SameSite: http.SameSiteLaxMode,
+	// 	Secure:   false, // Cambiar a true si se usa HTTPS
+	// 	Path:     "/",
+	// })
 
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
@@ -175,23 +174,23 @@ func (h *AuthHandler) LoginUserHandler(rw http.ResponseWriter, r *http.Request) 
 	}
 
 	// si el registro fue exitoso, se crea un token
-	tokenString, err := jwt.GenerateToken(user.ID, user.Is_admin, user.Name, user.Email, user.Surname, user.Phone_number, user.Is_barber, time.Now().Add(24*time.Hour))
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
+	// tokenString, err := jwt.GenerateToken(user.ID, user.Is_admin, user.Name, user.Email, user.Surname, user.Phone_number, user.Is_barber, time.Now().Add(24*time.Hour))
+	// if err != nil {
+	// 	http.Error(rw, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
 
-	// Establece la cookie con el token
-	http.SetCookie(rw, &http.Cookie{
-		Name:     auth_token,
-		Value:    tokenString,
-		Expires:  time.Now().Add(24 * time.Hour * 30),
-		Domain:   "", // Usa el dominio actual por defecto
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   false, // Cambiar a true si se usa HTTPS
-		Path:     "/",
-	})
+	// // Establece la cookie con el token
+	// http.SetCookie(rw, &http.Cookie{
+	// 	Name:     auth_token,
+	// 	Value:    tokenString,
+	// 	Expires:  time.Now().Add(24 * time.Hour * 30),
+	// 	Domain:   "", // Usa el dominio actual por defecto
+	// 	HttpOnly: true,
+	// 	SameSite: http.SameSiteLaxMode,
+	// 	Secure:   false, // Cambiar a true si se usa HTTPS
+	// 	Path:     "/",
+	// })
 
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
@@ -209,7 +208,7 @@ func (h *AuthHandler) VerifyTokenHandler(rw http.ResponseWriter, r *http.Request
 	// Validar el token
 	tokenString := cookie.Value
 
-	user, err := jwt.VerfiyToken(tokenString)
+	user, err := jwt.VerfiySessionToken(tokenString)
 	if err != nil {
 		http.Error(rw, "Token indalido o expirado", http.StatusUnauthorized)
 		return
@@ -253,7 +252,7 @@ func (h *AuthHandler) ResetUserPassword(rw http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	token, err := jwt.VerfiyToken(userData.Token)
+	token, err := jwt.VerfiySessionToken(userData.Token)
 
 	if err != nil {
 		http.Error(rw, "Token indalido o expirado", http.StatusUnauthorized)

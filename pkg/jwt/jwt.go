@@ -2,8 +2,11 @@ package jwt
 
 import (
 	"errors"
+	"net/http"
+	"os"
 	"time"
 
+	"github.com/ezep02/rodeo/internal/domain"
 	"github.com/golang-jwt/jwt"
 )
 
@@ -35,16 +38,16 @@ type JWTResetPassowrdClaim struct {
 
 var TokenKey = []byte("mytokenapikey")
 
-func GenerateToken(user_id uint, isAdmin bool, name string, email string, surname string, phone_number string, isBarber bool, expirationTime time.Time) (string, error) {
+func GenerateToken(user domain.User, expirationTime time.Time) (string, error) {
 
 	claim := JWTClaim{
-		ID:           user_id,
-		Name:         name,
-		Email:        email,
-		IsAdmin:      isAdmin,
-		Surname:      surname,
-		Phone_number: phone_number,
-		Is_barber:    isBarber,
+		ID:           user.ID,
+		Name:         user.Name,
+		Email:        user.Email,
+		IsAdmin:      user.Is_admin,
+		Surname:      user.Surname,
+		Phone_number: user.Phone_number,
+		Is_barber:    user.Is_barber,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},
@@ -59,32 +62,7 @@ func GenerateToken(user_id uint, isAdmin bool, name string, email string, surnam
 
 }
 
-func ValidateToken(signedString string) error {
-
-	token, err := jwt.ParseWithClaims(
-		signedString,
-		&JWTClaim{},
-		func(t *jwt.Token) (any, error) {
-			return TokenKey, nil
-		},
-	)
-
-	if err != nil {
-		return err
-	}
-
-	claims, ok := token.Claims.(*JWTClaim)
-	if !ok {
-		return errors.New("couldn't parse claims or token is invalid")
-	}
-
-	if claims.ExpiresAt < time.Now().UTC().Unix() {
-		return errors.New("token expired")
-	}
-	return nil
-}
-
-func VerfiyToken(tokenString string) (*VerifyTokenRes, error) {
+func VerfiySessionToken(tokenString string) (*VerifyTokenRes, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		// Asegura que la firma sea la esperada
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -125,4 +103,21 @@ func VerfiyToken(tokenString string) (*VerifyTokenRes, error) {
 	}
 
 	return nil, errors.New("invalid token")
+}
+
+// Crea una cookie de autenticación con el token JWT
+func NewAuthTokenCookie(token string) *http.Cookie {
+
+	name := os.Getenv("AUTH_TOKEN")
+
+	return &http.Cookie{
+		Name:     name,
+		Value:    token,
+		Expires:  time.Now().Add(24 * time.Hour * 30),
+		Domain:   "", // Usa el dominio actual por defecto
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   false, // Cambiar a true si se usa HTTPS
+		Path:     "/",
+	}
 }

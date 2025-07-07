@@ -4,13 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"time"
 
 	"github.com/ezep02/rodeo/internal/auth/models"
-	"github.com/ezep02/rodeo/pkg/jwt"
-	"github.com/ezep02/rodeo/utils"
 	"golang.org/x/oauth2"
 )
 
@@ -30,41 +26,41 @@ func CallbackHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// Intercambiar el código de autorización por un token
-	token, err := googleOauthConfig.Exchange(context.Background(), code)
-	if err != nil {
-		http.Error(rw, "Failed to exchange token: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	// token, err := googleOauthConfig.Exchange(context.Background(), code)
+	// if err != nil {
+	// 	http.Error(rw, "Failed to exchange token: "+err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 
 	// Token obtenido, puedes usarlo para hacer solicitudes autenticadas
-	userInfo, err := GetGoogleUserInfo(token)
-	if err != nil {
-		log.Println("Error fetching user info:", err)
-		http.Error(rw, "Failed to fetch user info", http.StatusInternalServerError)
-		return
-	}
+	// userInfo, err := GetGoogleUserInfo(token)
+	// if err != nil {
+	// 	log.Println("Error fetching user info:", err)
+	// 	http.Error(rw, "Failed to fetch user info", http.StatusInternalServerError)
+	// 	return
+	// }
 
 	// parsear el string a tipo uuid
-	parsedID := utils.GenerateDeterministicUint(userInfo.Sub)
+	// parsedID := utils.GenerateDeterministicUint(userInfo.Sub)
 
 	// autenticar creando el token
-	tokenString, err := jwt.GenerateToken(parsedID, false, userInfo.Name, userInfo.Email, "", "", false, time.Now().Add(24*time.Hour))
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
-		return
-	}
+	// tokenString, err := jwt.GenerateToken(parsedID, false, userInfo.Name, userInfo.Email, "", "", false, time.Now().Add(24*time.Hour))
+	// if err != nil {
+	// 	http.Error(rw, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
 
 	// Establece la cookie con el token
-	http.SetCookie(rw, &http.Cookie{
-		Name:     auth_token,
-		Value:    tokenString,
-		Expires:  time.Now().Add(24 * time.Hour * 30),
-		Domain:   "",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   false,
-		Path:     "/",
-	})
+	// http.SetCookie(rw, &http.Cookie{
+	// 	Name:     auth_token,
+	// 	Value:    tokenString,
+	// 	Expires:  time.Now().Add(24 * time.Hour * 30),
+	// 	Domain:   "",
+	// 	HttpOnly: true,
+	// 	SameSite: http.SameSiteLaxMode,
+	// 	Secure:   false,
+	// 	Path:     "/",
+	// })
 	// redireccionar al dashboard
 
 	http.Redirect(rw, r, "http://localhost:5173/dashboard", http.StatusTemporaryRedirect)

@@ -3,25 +3,18 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"time"
 
-	"github.com/ezep02/rodeo/internal/analytics"
-	"github.com/ezep02/rodeo/internal/auth"
-	"github.com/ezep02/rodeo/internal/orders"
-	"github.com/ezep02/rodeo/internal/schedules"
-	"github.com/ezep02/rodeo/internal/services"
-	"github.com/ezep02/rodeo/pkg/db"
-	"github.com/go-chi/cors"
-	"github.com/joho/godotenv"
+	"github.com/ezep02/rodeo/internal/repository"
+	"github.com/ezep02/rodeo/internal/service"
+	TransportHTTP "github.com/ezep02/rodeo/internal/transport/http"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/ezep02/rodeo/pkg/db"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-
-	// Mux base
-	mux := http.NewServeMux()
 
 	err := godotenv.Load(".env")
 	if err != nil {
@@ -39,42 +32,41 @@ func main() {
 		log.Fatalf("Error al conectar con la base de datos: %v", err)
 	}
 
-	// Middleware CORS
-	cors_handler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
-		AllowedMethods:   []string{"GET", "POST", "DELETE", "PUT", "PATCH"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}).Handler(mux)
+	// FIX V1
 
-	// Config Redis
+	// configuracion de redis
+	redisAddr := os.Getenv("REDIS_ADDR")
+
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
+		Addr:     redisAddr,
+		Password: "", // No password set
+		DB:       0,  // Use default DB
+		Protocol: 2,
 	})
 
-	// Routers
-	auth.RegisterAuthRoutes(mux, cnn)
+	// REPOS
+	gormApptRepo := repository.NewGormAppointmentRepo(cnn, redisClient)
+	gormProdRepo := repository.NewGormProductRepo(cnn, redisClient)
+	gormAuthRepo := repository.NewGormAuthRepo(cnn)
+	gormSlotRepo := repository.NewGormSlotRepo(cnn)
+	gormReviewRepo := repository.NewGormReviewRepo(cnn, redisClient)
+	gormAnalyticRepo := repository.NewGormAnalyticRepo(cnn)
+	gormCouponRepo := repository.NewGormCouponRepo(cnn)
+	gormInfoRepo := repository.NewGormInfoRepo(cnn)
 
-	services.ServicesRouter(mux, cnn, redisClient)
-	orders.OrderRoutes(mux, cnn, redisClient)
+	// SERVICES
+	apptSvc := service.NewAppointmentService(gormApptRepo, gormProdRepo)
+	prodSvc := service.NewProductService(gormProdRepo)
+	authSvc := service.NewAuthRepository(gormAuthRepo)
+	slotSvc := service.NewSlotService(gormSlotRepo)
+	revSvc := service.NewReviewService(gormReviewRepo, gormApptRepo)
+	analyticSvc := service.NewAnalyticService(gormAnalyticRepo)
+	couponSvc := service.NewCouponService(gormCouponRepo)
+	infoSvc := service.NewInfoRepository(gormInfoRepo)
 
-	schedules.SchedulesRoutes(mux, cnn)
-	analytics.AnalyticsRoutes(mux, cnn, redisClient)
+	r := TransportHTTP.NewRouter(apptSvc, prodSvc, authSvc, slotSvc, revSvc, analyticSvc, couponSvc, infoSvc)
 
-	//
-
-	// Crear y configurar el servidor HTTP
-	srv := &http.Server{
-		Handler:      cors_handler,
-		Addr:         ":9090",
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
-	}
-
-	log.Printf("Servidor iniciado en %s", srv.Addr)
-	log.Fatal(srv.ListenAndServe())
+	PORT := 9090
+	log.Printf("Servidor iniciado en %d", PORT)
+	r.Run(":" + fmt.Sprintf("%d", PORT))
 }
