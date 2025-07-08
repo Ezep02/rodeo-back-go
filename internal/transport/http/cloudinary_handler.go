@@ -2,41 +2,23 @@ package http
 
 import (
 	"net/http"
-	"os"
 
-	"github.com/cloudinary/cloudinary-go/v2"
-	"github.com/cloudinary/cloudinary-go/v2/api/admin"
+	"github.com/ezep02/rodeo/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
-func GetCloudinaryImages(c *gin.Context) {
+type CloudinaryHandler struct {
+	svc *service.CloudinaryService
+}
 
-	// Carga variables de entorno
-	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
-	apiKey := os.Getenv("CLOUDINARY_API_KEY")
-	apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
+func NewCloudinaryHandler(svc *service.CloudinaryService) *CloudinaryHandler {
+	return &CloudinaryHandler{svc}
+}
 
-	if cloudName == "" || apiKey == "" || apiSecret == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Error initializing Cloudinary",
-		})
-		return
-	}
-
-	// Inicializa Cloudinary
-	cld, err := cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Error initializing Cloudinary",
-		})
-		return
-	}
+func (h *CloudinaryHandler) Images(c *gin.Context) {
 
 	// Llama al Admin API para obtener imágenes
-	res, err := cld.Admin.Assets(c.Request.Context(), admin.AssetsParams{
-		AssetType:  "image",
-		MaxResults: 10,
-	})
+	res, err := h.svc.List(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Error fetching images from Cloudinary",
@@ -45,6 +27,22 @@ func GetCloudinaryImages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"assets": res.Assets,
+		"assets": res,
+	})
+}
+
+func (h *CloudinaryHandler) Video(c *gin.Context) {
+
+	// Llama al Admin API para obtener imágenes
+	res, err := h.svc.Video(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Error fetching images from Cloudinary",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"assets": res,
 	})
 }

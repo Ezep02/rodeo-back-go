@@ -23,7 +23,7 @@ type Appointment struct {
 	UserID            uint      `gorm:"foreignKey:UserID;references:ID" json:"user_id"`
 	Slot              Slot      `gorm:"foreignKey:SlotID;references:ID" json:"slot"`
 	PaymentPercentage int       `gorm:"not null;default:0" json:"payment_percentage"`
-	Status            string    `gorm:"size:100;not null;default:'active'" json:"status"` // <-- AQUI
+	Status            string    `gorm:"size:100;not null;default:'active'" json:"status"`
 	Products          []Product `gorm:"many2many:appointment_products;" json:"products"`
 	Review            *Review   `gorm:"foreignKey:AppointmentID;" json:"review"`
 	CreatedAt         time.Time `json:"created_at"`

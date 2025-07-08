@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/ezep02/rodeo/internal/domain"
 	"github.com/redis/go-redis/v9"
@@ -69,18 +71,37 @@ func (r *GormAppointmentRepository) GetByID(ctx context.Context, id uint) (*doma
 
 func (r *GormAppointmentRepository) List(ctx context.Context) ([]domain.Appointment, error) {
 	var (
-		appt []domain.Appointment
+		appts    []domain.Appointment
+		apptsKey string = "nextBarberApptKey"
 	)
+	// 1. Recuperar productos del cache
+	servicesInCache, err := r.redis.Get(ctx, apptsKey).Result()
 
-	// TODO: cachear
+	if err == nil {
+		json.Unmarshal([]byte(servicesInCache), &appts)
+		return appts, nil
+	}
 
-	// 1. Ralizar consulta sql
-	if err := r.db.WithContext(ctx).Preload("Products", func(db *gorm.DB) *gorm.DB {
-		return db.Select("id", "name", "price")
-	}).Preload("Slot").Order("created_at DESC").Limit(10).Find(&appt).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Joins("JOIN slots ON slots.id = appointments.slot_id").
+		Where("DATE(slots.date) = CURDATE()").
+		Preload("Products", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name", "price")
+		}).
+		Preload("Slot").
+		Order("appointments.created_at DESC").
+		Find(&appts).Error; err != nil {
 		return nil, err
 	}
-	return appt, nil
+
+	// 3. Cachear los datos recuperados
+	data, err := json.Marshal(appts)
+	if err != nil {
+		log.Println("Error realizando cache de los productos")
+	}
+	r.redis.Set(ctx, apptsKey, data, 3*time.Minute)
+
+	return appts, nil
 }
 
 func (r *GormAppointmentRepository) Update(ctx context.Context, appointment *domain.Appointment, slot_id uint) error {
@@ -159,13 +180,20 @@ func (r *GormAppointmentRepository) Delete(ctx context.Context, id uint) error {
 func (r *GormAppointmentRepository) GetByUserID(ctx context.Context, id uint) ([]domain.Appointment, error) {
 
 	var (
-		appt []domain.Appointment
+		appt        []domain.Appointment
+		userApptKey string
 	)
+
+	// 1. Recuperar productos del cache
+	infoInCache, err := r.redis.Get(ctx, userApptKey).Result()
+	if err == nil {
+		json.Unmarshal([]byte(infoInCache), &appt)
+		return appt, nil
+	}
 
 	// TODO: cachear informacion
 	if err := r.db.WithContext(ctx).
 		Select("id", "slot_id", "payment_percentage", "created_at", "status").
-		Where("not status = ?", "cancelled").
 		Preload("Products", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "name", "price")
 		}).
@@ -181,6 +209,13 @@ func (r *GormAppointmentRepository) GetByUserID(ctx context.Context, id uint) ([
 		Find(&appt).Error; err != nil {
 		return nil, err
 	}
+
+	// 3. Cachear los datos recuperados
+	data, err := json.Marshal(appt)
+	if err != nil {
+		log.Println("Error realizando cache de los productos")
+	}
+	r.redis.Set(ctx, userApptKey, data, 3*time.Minute)
 
 	return appt, nil
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/ezep02/rodeo/internal/repository"
 	"github.com/ezep02/rodeo/internal/service"
 	TransportHTTP "github.com/ezep02/rodeo/internal/transport/http"
@@ -44,6 +45,23 @@ func main() {
 		Protocol: 2,
 	})
 
+	// Inicializa Cloudinary
+	// Carga variables de entorno
+	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
+	apiKey := os.Getenv("CLOUDINARY_API_KEY")
+	apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
+
+	if cloudName == "" || apiKey == "" || apiSecret == "" {
+		log.Println("Error obteniendo variables de entorno del cache")
+		return
+	}
+
+	cld, err := cloudinary.NewFromParams(cloudName, apiKey, apiSecret)
+	if err != nil {
+		log.Println("Error iniciando cloudinary")
+		return
+	}
+
 	// REPOS
 	gormApptRepo := repository.NewGormAppointmentRepo(cnn, redisClient)
 	gormProdRepo := repository.NewGormProductRepo(cnn, redisClient)
@@ -52,19 +70,25 @@ func main() {
 	gormReviewRepo := repository.NewGormReviewRepo(cnn, redisClient)
 	gormAnalyticRepo := repository.NewGormAnalyticRepo(cnn)
 	gormCouponRepo := repository.NewGormCouponRepo(cnn)
-	gormInfoRepo := repository.NewGormInfoRepo(cnn)
+	gormInfoRepo := repository.NewGormInfoRepo(cnn, redisClient)
+
+	// CLOUDINARY REPO
+	cloudinaryRepo := repository.NewCloudinaryCloudRepo(cld, redisClient)
 
 	// SERVICES
 	apptSvc := service.NewAppointmentService(gormApptRepo, gormProdRepo)
 	prodSvc := service.NewProductService(gormProdRepo)
-	authSvc := service.NewAuthRepository(gormAuthRepo)
+	authSvc := service.NewAuthService(gormAuthRepo)
 	slotSvc := service.NewSlotService(gormSlotRepo)
 	revSvc := service.NewReviewService(gormReviewRepo, gormApptRepo)
 	analyticSvc := service.NewAnalyticService(gormAnalyticRepo)
 	couponSvc := service.NewCouponService(gormCouponRepo)
 	infoSvc := service.NewInfoRepository(gormInfoRepo)
 
-	r := TransportHTTP.NewRouter(apptSvc, prodSvc, authSvc, slotSvc, revSvc, analyticSvc, couponSvc, infoSvc)
+	// CLOUDINARY SERVICE
+	cloudinarySvc := service.NewCloudService(cloudinaryRepo)
+
+	r := TransportHTTP.NewRouter(apptSvc, prodSvc, authSvc, slotSvc, revSvc, analyticSvc, couponSvc, infoSvc, cloudinarySvc)
 
 	PORT := 9090
 	log.Printf("Servidor iniciado en %d", PORT)

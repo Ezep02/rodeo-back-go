@@ -15,6 +15,7 @@ func NewRouter(
 	analyticSvc *service.AnalyticService,
 	couponSvc *service.CouponService,
 	infoSvc *service.InformationService,
+	cloudinarySvc *service.CloudinaryService,
 ) *gin.Engine {
 
 	r := gin.Default()
@@ -130,8 +131,10 @@ func NewRouter(
 		// Rutas de cloudinary
 		cloudinary := v1.Group("/cloudinary")
 		{
+			cloudinaryHandler := NewCloudinaryHandler(cloudinarySvc)
+			cloudinary.GET("/images", cloudinaryHandler.Images)
+			cloudinary.GET("/video", cloudinaryHandler.Video)
 
-			cloudinary.GET("/images", GetCloudinaryImages)
 		}
 	}
 

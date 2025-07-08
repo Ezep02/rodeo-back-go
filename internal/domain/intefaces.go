@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"github.com/cloudinary/cloudinary-go/v2/api"
 )
 
 var (
@@ -72,4 +74,9 @@ type CouponRepository interface {
 
 type InformationRepository interface {
 	BarberInformation(ctx context.Context) (*BarberInformation, error)
+}
+
+type CloudinaryRepository interface {
+	List(ctx context.Context) ([]api.BriefAssetResult, error)
+	Video(ctx context.Context) ([]api.BriefAssetResult, error)
 }
