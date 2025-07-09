@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -17,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mercadopago/sdk-go/pkg/config"
 	"github.com/mercadopago/sdk-go/pkg/payment"
+	"gopkg.in/gomail.v2"
 )
 
 type AppointmentHandler struct {
@@ -229,6 +231,18 @@ func (h *AppointmentHandler) Cancel(c *gin.Context) {
 		return
 	}
 
+	// Verificar que no este cancelada
+	exist, err := h.svc.GetByID(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Cita no encontrada"})
+		return
+	}
+
+	if exist.Status == "cancelled" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No podes cancelar dos veces la misma cita"})
+		return
+	}
+
 	// Si pago completo, se crea un cupon
 	if err := h.svc.Cancel(c.Request.Context(), uint(id)); err != nil {
 		if err == domain.ErrNotFound {
@@ -399,4 +413,37 @@ func (h *AppointmentHandler) Surcharge(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, updatedAppt)
+}
+
+func (h *AppointmentHandler) Reminder(c *gin.Context) {
+	key := os.Getenv("EMAIL_APP_PASSWORD")
+
+	m := gomail.NewMessage()
+	m.SetAddressHeader("From", "91b38a002@smtp-brevo.com", "El Rodeo Barbería") // o tu correo verificado
+	m.SetHeader("Reply-To", "reservas@tubarberia.com")                          // opcional
+	m.SetHeader("To", "pereyraezequiel15617866@outlook.es")
+	m.SetHeader("Subject", "¡Recordatorio de tu cita!")
+	m.SetBody("text/plain", "Hola, recordá que tenés una cita programada.")
+	m.AddAlternative("text/html", `
+		<!DOCTYPE html>
+		<html>
+		<body style="font-family: Arial; padding: 10px;">
+			<h3>Hola,</h3>
+			<p>Este es un recordatorio de tu cita con <strong>El Rodeo Barbería</strong>.</p>
+			<p>📅 <strong>Hora:</strong> 15:00 hs</p>
+			<p>¡Te esperamos!</p>
+		</body>
+		</html>`)
+
+	d := gomail.NewDialer("smtp-relay.brevo.com", 587, "91b38a002@smtp-brevo.com", key)
+	d.SSL = false
+	d.TLSConfig = &tls.Config{ServerName: "smtp-relay.brevo.com"}
+
+	if err := d.DialAndSend(m); err != nil {
+		log.Println("Error al enviar correo:", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No se pudo enviar el correo"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Correo enviado correctamente"})
 }

@@ -23,7 +23,7 @@ func NewRouter(
 	// Middleware de CORS
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:4173")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if c.Request.Method == "OPTIONS" {
@@ -59,7 +59,7 @@ func NewRouter(
 			appts.PUT("/:id", apptHandler.Update)
 			appts.POST("/surcharge", apptHandler.Surcharge)
 			appts.DELETE("/:id", apptHandler.Cancel)
-
+			appts.POST("/reminder", apptHandler.Reminder)
 			// Rutas especificas de los usuarios
 			appts.GET("/user/:id", apptHandler.GetByUserID)
 		}

@@ -48,7 +48,7 @@ type JWTAppointmentClaim struct {
 
 var (
 	payment_token           = os.Getenv("PAYMENT_TOKEN")
-	notification_url string = "https://ea6d76bc7d65.ngrok-free.app" // URL de notificación
+	notification_url string = "https://acc764f836a1.ngrok-free.app" // URL de notificación
 )
 
 func NewMepaHandler(prodSvc *service.ProductService, apptSvc *service.AppointmentService, slotSvc *service.SlotService) *MepaHandler {

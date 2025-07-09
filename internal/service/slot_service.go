@@ -20,11 +20,11 @@ func NewSlotService(slotRepo domain.SlotRepository) *SlotService {
 func (s *SlotService) Create(ctx context.Context, slot *[]domain.Slot) error {
 
 	// 1. Validar que la cita nos sea en el pasado
-	for _, s := range *slot {
-		if s.Date.Before(time.Now()) {
-			return fmt.Errorf("no podes crear un turno en el pasado %s", s.Date)
-		}
-	}
+	// for _, s := range *slot {
+	// 	if s.Date.Before(time.Now()) {
+	// 		return fmt.Errorf("no podes crear un turno en el pasado %s", s.Date)
+	// 	}
+	// }
 
 	return s.slotRepo.Create(ctx, slot)
 }
