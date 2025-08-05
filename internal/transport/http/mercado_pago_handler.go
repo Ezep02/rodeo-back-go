@@ -48,7 +48,7 @@ type JWTAppointmentClaim struct {
 
 var (
 	payment_token           = os.Getenv("PAYMENT_TOKEN")
-	notification_url string = "https://acc764f836a1.ngrok-free.app" // URL de notificación
+	notification_url string = "https://9035b9d50a53.ngrok-free.app" // URL de notificación
 )
 
 func NewMepaHandler(prodSvc *service.ProductService, apptSvc *service.AppointmentService, slotSvc *service.SlotService) *MepaHandler {
@@ -93,13 +93,14 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 	}
 
 	// 5. Evitar citas duplicadas
+	log.Println("slot id", req.SlotID)
 	existingAppt, err := h.slotSvc.GetByID(c.Request.Context(), req.SlotID)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	if existingAppt.Is_booked {
+	if existingAppt.IsBooked {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ya existe una cita para esta fecha y horario"})
 		return
 	}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ezep02/rodeo/internal/domain"
 )
@@ -41,8 +42,8 @@ func (s *AppointmentService) GetByID(ctx context.Context, id uint) (*domain.Appo
 	return s.apptRepo.GetByID(ctx, id)
 }
 
-func (s *AppointmentService) ListAll(ctx context.Context) ([]domain.Appointment, error) {
-	return s.apptRepo.List(ctx)
+func (s *AppointmentService) ListByDateRange(ctx context.Context, start time.Time, end time.Time) ([]domain.Appointment, error) {
+	return s.apptRepo.ListByDateRange(ctx, start, end)
 }
 
 func (s *AppointmentService) Update(ctx context.Context, id, slot_id uint, updatedAppt *domain.Appointment) error {
@@ -57,16 +58,16 @@ func (s *AppointmentService) Update(ctx context.Context, id, slot_id uint, updat
 	updatedAppt.ID = existing.ID
 
 	// 4. Evitar citas duplicadas
-	existingAppts, err := s.apptRepo.List(ctx)
-	if err != nil {
-		return err
-	}
+	// existingAppts, err := s.apptRepo.List(ctx)
+	// if err != nil {
+	// 	return err
+	// }
 
-	for _, existing := range existingAppts {
-		if existing.ID != id && s.appointmentsOverlap(existing, *updatedAppt) {
-			return errors.New("ya existe una cita en esa fecha y hora")
-		}
-	}
+	// for _, existing := range existingAppts {
+	// 	if existing.ID != id && s.appointmentsOverlap(existing, *updatedAppt) {
+	// 		return errors.New("ya existe una cita en esa fecha y hora")
+	// 	}
+	// }
 
 	// 6. Actualizar la cita
 	return s.apptRepo.Update(ctx, updatedAppt, slot_id)
@@ -113,10 +114,10 @@ func (s *AppointmentService) GetByUserID(ctx context.Context, id uint) ([]domain
 }
 
 // utilizad
-func (s *AppointmentService) appointmentsOverlap(existing, newAppt domain.Appointment) bool {
-	// Compara si las citas se superponen
-	if existing.Slot.Date.Equal(newAppt.Slot.Date) && existing.Slot.Time == newAppt.Slot.Time {
-		return true
-	}
-	return false
-}
+// func (s *AppointmentService) appointmentsOverlap(existing, newAppt domain.Appointment) bool {
+// 	// Compara si las citas se superponen
+// 	if existing.Slot.Date.Equal(newAppt.Slot.Date) && existing.Slot.Time == newAppt.Slot.Time {
+// 		return true
+// 	}
+// 	return false
+// }

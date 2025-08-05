@@ -47,3 +47,20 @@ func (r *GormAuthRepository) GetByID(ctx context.Context, id uint) (*domain.User
 
 	return &user, nil
 }
+
+func (r *GormAuthRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+
+	var user domain.User
+
+	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
+
+		// Check if the error is a record not found error
+		// If so, return a custom error indicating that the appointment was not found
+		if err == gorm.ErrRecordNotFound {
+			return nil, domain.ErrNotFound
+		}
+
+		return nil, err
+	}
+	return &user, nil
+}

@@ -73,8 +73,8 @@ func (s *SlotService) ListByDate(ctx context.Context, date time.Time) ([]domain.
 	return s.slotRepo.ListByDate(ctx, date)
 }
 
-func (s *SlotService) List(ctx context.Context, offset int) ([]domain.Slot, error) {
-	return s.slotRepo.List(ctx, offset)
+func (s *SlotService) ListByDateRange(ctx context.Context, start time.Time, end time.Time) ([]domain.Slot, error) {
+	return s.slotRepo.ListByDateRange(ctx, start, end)
 }
 
 func (s *SlotService) GetByID(ctx context.Context, id uint) (*domain.Slot, error) {

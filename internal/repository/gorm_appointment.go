@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -69,38 +70,43 @@ func (r *GormAppointmentRepository) GetByID(ctx context.Context, id uint) (*doma
 	return &appt, nil
 }
 
-func (r *GormAppointmentRepository) List(ctx context.Context) ([]domain.Appointment, error) {
+func (r *GormAppointmentRepository) ListByDateRange(ctx context.Context, start, end time.Time) ([]domain.Appointment, error) {
 	var (
 		appts    []domain.Appointment
-		apptsKey string = "nextBarberApptKey"
+		cacheKey = fmt.Sprintf("appointment-start:%s-end:%s", start, end)
 	)
-	// 1. Recuperar productos del cache
-	servicesInCache, err := r.redis.Get(ctx, apptsKey).Result()
 
+	// 1. Recuperar desde el cache
+	infoInCache, err := r.redis.Get(ctx, cacheKey).Result()
 	if err == nil {
-		json.Unmarshal([]byte(servicesInCache), &appts)
+		json.Unmarshal([]byte(infoInCache), &appts)
 		return appts, nil
 	}
 
+	// 2. Realizar consulta
 	if err := r.db.WithContext(ctx).
 		Joins("JOIN slots ON slots.id = appointments.slot_id").
-		Where("DATE(slots.date) = CURDATE()").
+		Where("slots.date >= ? AND slots.date <= ?", start, end).
 		Preload("Products", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "name", "price")
 		}).
-		Preload("Slot").
-		Order("appointments.created_at DESC").
+		Preload("Slot", func(db *gorm.DB) *gorm.DB {
+			return db.Preload("Barber", func(db *gorm.DB) *gorm.DB {
+				return db.Select("id", "name", "surname")
+			})
+		}).
+		Order("slots.date ASC").
 		Find(&appts).Error; err != nil {
 		return nil, err
 	}
 
-	// 3. Cachear los datos recuperados
-	data, err := json.Marshal(appts)
+	// 3. Guardar nueva informacion
+	apptsToByte, err := json.Marshal(appts)
 	if err != nil {
 		log.Println("Error realizando cache de los productos")
 	}
-	r.redis.Set(ctx, apptsKey, data, 3*time.Minute)
 
+	r.redis.Set(ctx, cacheKey, apptsToByte, 1*time.Minute)
 	return appts, nil
 }
 
@@ -113,6 +119,7 @@ func (r *GormAppointmentRepository) Update(ctx context.Context, appointment *dom
 
 			if err := appt_tx.WithContext(ctx).Model(&domain.Appointment{}).Where("id = ?", appointment.ID).Updates(map[string]any{
 				"SlotID": appointment.SlotID,
+				"Status": appointment.Status,
 			}).Error; err != nil {
 				return err
 			}

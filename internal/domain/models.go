@@ -15,6 +15,16 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+//
+type Slot struct {
+	ID       uint      `gorm:"primaryKey" json:"id"`
+	Date     time.Time `gorm:"not null" json:"date"`
+	Time     string    `gorm:"not null" json:"time"`
+	IsBooked bool      `gorm:"default:false" json:"is_booked"`
+	BarberID uint      `json:"barber_id"`
+	Barber   User      `gorm:"foreignKey:BarberID;references:ID" json:"barber"`
+}
+
 type Appointment struct {
 	ID                uint      `gorm:"primaryKey" json:"id"`
 	ClientName        string    `gorm:"size:100;not null" json:"client_name"`
@@ -35,7 +45,8 @@ type Product struct {
 	Name            string    `gorm:"size:100;not null" json:"name"`
 	Description     string    `gorm:"size:255" json:"description"`
 	Price           float64   `gorm:"not null" json:"price"`
-	Category        string    `gorm:"size:50;not null" json:"category"`
+	CategoryID      uint      `gorm:"not null" json:"category_id"` // <- Este es clave
+	Category        *Category `gorm:"foreignKey:CategoryID;references:ID" json:"category"`
 	RatingSum       int       `gorm:"default:0" json:"rating_sum"`
 	NumberOfReviews int       `gorm:"default:0" json:"number_of_reviews"`
 	PreviewUrl      string    `json:"preview_url"`
@@ -43,12 +54,12 @@ type Product struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
-//
-type Slot struct {
+type Category struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	Date      time.Time `gorm:"not null" json:"date"`
-	Time      string    `gorm:"not null" json:"time"`
-	Is_booked bool      `gorm:"default:false" json:"is_booked"`
+	Name      string    `gorm:"size:100;not null" json:"name"`
+	Color     string    `gorm:"size:7" json:"color"` // #RRGGBB
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // Review
@@ -111,4 +122,16 @@ type BarberInformation struct {
 	Member           int     `json:"member"`
 	Promedy          float64 `json:"promedy"`
 	TotalAppointment int     `json:"total_appointment"`
+}
+
+// Posts
+type Post struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	UserID      uint      `gorm:"foreignKey:UserID;references:ID" json:"user_id"`
+	Title       string    `gorm:"type:varchar(12);not null" json:"title"`
+	PreviewUrl  string    `json:"preview_url"`
+	Description string    `json:"description"`
+	IsPublished bool      `gorm:"default:true" json:"is_published"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }

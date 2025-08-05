@@ -1,12 +1,15 @@
 package http
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/ezep02/rodeo/internal/domain"
 	"github.com/ezep02/rodeo/internal/service"
+	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/gin-gonic/gin"
 )
 
@@ -40,11 +43,29 @@ type DeleteSlotRequest struct {
 func (h *SlotHandler) Create(c *gin.Context) {
 
 	var (
-		req []CreateSlotRequest
+		req        []CreateSlotRequest
+		auth_token = os.Getenv("AUTH_TOKEN")
 	)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	cookie, err := c.Cookie(auth_token)
+	if err != nil {
+		log.Println("error", err)
+	}
+
+	// 4. Validar la cookie
+	user, err := jwt.VerfiySessionToken(cookie)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalido o expirado"})
+		return
+	}
+
+	if !user.Is_barber {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "usuario no autorizado"})
 		return
 	}
 
@@ -53,9 +74,10 @@ func (h *SlotHandler) Create(c *gin.Context) {
 
 	for i, s := range req {
 		slot[i] = domain.Slot{
-			Date:      s.Date,
-			Time:      s.Time,
-			Is_booked: false,
+			Date:     s.Date,
+			Time:     s.Time,
+			IsBooked: false,
+			BarberID: user.ID,
 		}
 	}
 
@@ -73,11 +95,29 @@ func (h *SlotHandler) Create(c *gin.Context) {
 func (h *SlotHandler) Update(c *gin.Context) {
 
 	var (
-		req []UpdateSlotRequest
+		req        []UpdateSlotRequest
+		auth_token = os.Getenv("AUTH_TOKEN")
 	)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	cookie, err := c.Cookie(auth_token)
+	if err != nil {
+		log.Println("error", err)
+	}
+
+	// 4. Validar la cookie
+	user, err := jwt.VerfiySessionToken(cookie)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalido o expirado"})
+		return
+	}
+
+	if !user.Is_barber {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "usuario no autorizado"})
 		return
 	}
 
@@ -86,10 +126,11 @@ func (h *SlotHandler) Update(c *gin.Context) {
 
 	for i, s := range req {
 		slot[i] = domain.Slot{
-			ID:        s.ID,
-			Date:      s.Date,
-			Time:      s.Time,
-			Is_booked: s.Is_booked,
+			ID:       s.ID,
+			Date:     s.Date,
+			Time:     s.Time,
+			IsBooked: s.Is_booked,
+			BarberID: user.ID,
 		}
 	}
 
@@ -162,17 +203,32 @@ func (h *SlotHandler) ListByDate(c *gin.Context) {
 	})
 }
 
-func (h *SlotHandler) List(c *gin.Context) {
+func (h *SlotHandler) ListByDateRange(c *gin.Context) {
 
-	offsetStr := c.Param("offset")
+	// 1. Obtener params de la consulta
+	startStr := c.Param("start")
+	endStr := c.Param("end")
 
-	offset, err := strconv.ParseInt(offsetStr, 10, 64)
+	// 2. Parsear los horarios
+	startDate, err := time.Parse("2006-01-02", startStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID invalido"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "start date invalid"})
 		return
 	}
 
-	slots, err := h.svc.List(c.Request.Context(), int(offset))
+	endDate, err := time.Parse("2006-01-02", endStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "end date invalid"})
+		return
+	}
+
+	// 3. Verificar que no sean fechas en el pasado
+	if endDate.Before(startDate) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "end date must be after start date"})
+		return
+	}
+
+	slots, err := h.svc.ListByDateRange(c.Request.Context(), startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error recuperando slots"})
 		return

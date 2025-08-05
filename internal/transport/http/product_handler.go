@@ -1,6 +1,7 @@
 package http
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -19,10 +20,10 @@ func NewProductHandler(apptService *service.ProductService) *ProductHandler {
 }
 
 type CreateProductRequest struct {
-	Name        string  `json:"name" binding:"required"`
-	Price       float64 `json:"price" binding:"required"`
+	Name        string  `json:"name"`
+	Price       float64 `json:"price"`
 	Description string  `json:"description"`
-	Category    string  `json:"category"`
+	CategoryID  uint    `json:"category_id"`
 	Preview_url string  `json:"preview_url"`
 }
 
@@ -30,13 +31,14 @@ type UpdateProductRequest struct {
 	Name        string  `json:"name" binding:"required"`
 	Price       float64 `json:"price" binding:"required"`
 	Description string  `json:"description"`
-	Category    string  `json:"category"`
+	CategoryID  uint    `json:"category_id"`
 	Preview_url string  `json:"preview_url"`
 }
 
 func (h *ProductHandler) Create(c *gin.Context) {
 	var req CreateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Println("Error binding JSON:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
@@ -46,7 +48,8 @@ func (h *ProductHandler) Create(c *gin.Context) {
 		Name:        req.Name,
 		Price:       req.Price,
 		Description: req.Description,
-		Category:    req.Category,
+		CategoryID:  req.CategoryID,
+		PreviewUrl:  req.Preview_url,
 	}
 
 	if err := h.svc.Create(c.Request.Context(), product); err != nil {
@@ -116,7 +119,8 @@ func (h *ProductHandler) Update(c *gin.Context) {
 		Name:        req.Name,
 		Price:       req.Price,
 		Description: req.Description,
-		Category:    req.Category,
+		CategoryID:  req.CategoryID,
+		PreviewUrl:  req.Preview_url,
 		UpdatedAt:   time.Now(),
 	}
 

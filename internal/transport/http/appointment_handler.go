@@ -13,8 +13,10 @@ import (
 
 	"github.com/ezep02/rodeo/internal/domain"
 	"github.com/ezep02/rodeo/internal/service"
+	"github.com/ezep02/rodeo/internal/transport/sse"
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/ezep02/rodeo/utils"
+
 	"github.com/gin-gonic/gin"
 	"github.com/mercadopago/sdk-go/pkg/config"
 	"github.com/mercadopago/sdk-go/pkg/payment"
@@ -24,10 +26,16 @@ import (
 type AppointmentHandler struct {
 	svc       *service.AppointmentService
 	couponSvc *service.CouponService
+	slotSvc   *service.SlotService
+	sseServer *sse.SSEHandler
 }
 
-func NewAppointmentHandler(apptService *service.AppointmentService, couponSvc *service.CouponService) *AppointmentHandler {
-	return &AppointmentHandler{apptService, couponSvc}
+func NewAppointmentHandler(
+	apptService *service.AppointmentService,
+	couponSvc *service.CouponService,
+	sseServer *sse.SSEHandler,
+	slotSvc *service.SlotService) *AppointmentHandler {
+	return &AppointmentHandler{apptService, couponSvc, slotSvc, sseServer}
 }
 
 type UpdateAppointmentRequest struct {
@@ -107,7 +115,7 @@ func (h *AppointmentHandler) Create(c *gin.Context) {
 	}
 
 	// 8. Crear la cita
-	if err := h.svc.Schedule(c.Request.Context(), &domain.Appointment{
+	newAppt := domain.Appointment{
 		ClientName:        paymentInfo.AdditionalInfo.Payer.FirstName,
 		ClientSurname:     paymentInfo.AdditionalInfo.Payer.LastName,
 		SlotID:            metadata.SlotID,
@@ -115,26 +123,66 @@ func (h *AppointmentHandler) Create(c *gin.Context) {
 		UserID:            metadata.UserID,
 		Status:            "active",
 		Products:          products,
-	}); err != nil {
+	}
+
+	if err := h.svc.Schedule(c.Request.Context(), &newAppt); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 9. Recuperar la orden
+	slot, err := h.slotSvc.GetByID(c.Request.Context(), newAppt.SlotID)
+	if err != nil || slot == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve slot"})
+		return
+	}
+	newAppt.Slot = *slot
+
+	// 10. Enviar stream de datos
+	ssePayload := sse.SSEMessage{
+		Type: "appointment_created",
+		Data: newAppt,
+	}
+
+	jsonMsg, _ := json.Marshal(ssePayload)
+	h.sseServer.Hub.Broadcast(string(jsonMsg))
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Cita creada exitosamente",
 	})
 }
 
-func (h *AppointmentHandler) List(c *gin.Context) {
-	appointments, err := h.svc.ListAll(c.Request.Context())
+func (h *AppointmentHandler) ListByDateRange(c *gin.Context) {
+
+	startStr := c.Param("start")
+	endStr := c.Param("end")
+
+	startDate, err := time.Parse("2006-01-02", startStr)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching appointments"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "start date invalid"})
+		return
+	}
+
+	endDate, err := time.Parse("2006-01-02", endStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "end date invalid"})
+		return
+	}
+
+	if endDate.Before(startDate) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "end date must be after start date"})
+		return
+	}
+
+	appts, err := h.svc.ListByDateRange(c.Request.Context(), startDate, endDate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch appointments"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"appointments": appointments,
-		"total":        len(appointments),
+		"appointments": appts,
+		"total":        len(appts),
 	})
 }
 
@@ -186,11 +234,33 @@ func (h *AppointmentHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// 4 Recuperar slot actualizado
+	updatedSlot, err := h.slotSvc.GetByID(c.Request.Context(), req.NewSlotId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error recuperando slot"})
+		return
+	}
+
+	// 5. Crear evento
+	ssePayload := sse.SSEMessage{
+		Type: "appointment_updated",
+		Data: domain.Appointment{
+			ID:   uint(id),
+			Slot: *updatedSlot,
+		},
+	}
+	log.Println("[ENVIANDO EVENTO ACTUALIZAR]")
+
+	// 6. Despachar evento
+	jsonMsg, _ := json.Marshal(ssePayload)
+	h.sseServer.Hub.Broadcast(string(jsonMsg))
+
 	c.JSON(http.StatusOK, updatedAppt)
 }
 
 type CancelReq struct {
-	Recharge float64 `json:"recharge"`
+	Recharge float64   `json:"recharge"`
+	ExpireAt time.Time `json:"expire_at"`
 }
 
 func (h *AppointmentHandler) Cancel(c *gin.Context) {
@@ -243,7 +313,6 @@ func (h *AppointmentHandler) Cancel(c *gin.Context) {
 		return
 	}
 
-	// Si pago completo, se crea un cupon
 	if err := h.svc.Cancel(c.Request.Context(), uint(id)); err != nil {
 		if err == domain.ErrNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Cita no encontrada"})
@@ -258,6 +327,7 @@ func (h *AppointmentHandler) Cancel(c *gin.Context) {
 	// Si hay recargo, generar cupon
 	c.JSON(http.StatusOK, "cita cancelada exitosamente")
 
+	// Si pago completo, se crea un cupon
 	if req.Recharge > 0 {
 
 		coupon, err := h.couponSvc.GenerateCoupon(12)
@@ -274,12 +344,23 @@ func (h *AppointmentHandler) Cancel(c *gin.Context) {
 				DiscountPercentage: recharge,
 				IsAvailable:        true,
 				CreatedAt:          time.Now(),
-				ExpireAt:           time.Now().Add(7 * 24 * time.Hour),
+				ExpireAt:           req.ExpireAt,
 			})
+
 			if err != nil {
 				log.Printf("Error creando cupon: %v\n", err)
 				return
 			}
+
+			// Comunicar al dashboard de la cancelacion
+			ssePayload := sse.SSEMessage{
+				Type: "appointment_cancelled",
+				Data: exist,
+			}
+
+			jsonMsg, _ := json.Marshal(ssePayload)
+			h.sseServer.Hub.Broadcast(string(jsonMsg))
+
 			log.Println("Cupon creado correctamente")
 		}(user.ID, req.Recharge, coupon)
 	}
@@ -405,12 +486,34 @@ func (h *AppointmentHandler) Surcharge(c *gin.Context) {
 	updatedAppt := &domain.Appointment{
 		ID:     metadata.ApptId,
 		SlotID: metadata.NewSlotId,
+		Status: "updated",
 	}
 
 	if err := h.svc.Update(c.Request.Context(), metadata.ApptId, metadata.OldSlotId, updatedAppt); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 4 Recuperar slot actualizado
+	updatedSlot, err := h.slotSvc.GetByID(c.Request.Context(), metadata.NewSlotId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error recuperando slot"})
+		return
+	}
+
+	// 5. Crear evento
+	ssePayload := sse.SSEMessage{
+		Type: "appointment_updated",
+		Data: domain.Appointment{
+			ID:   uint(metadata.ApptId),
+			Slot: *updatedSlot,
+		},
+	}
+	log.Println("[ENVIANDO EVENTO ACTUALIZAR SURCHARGE]")
+
+	// 6. Despachar evento
+	jsonMsg, _ := json.Marshal(ssePayload)
+	h.sseServer.Hub.Broadcast(string(jsonMsg))
 
 	c.JSON(http.StatusOK, updatedAppt)
 }

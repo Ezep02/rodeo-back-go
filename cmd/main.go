@@ -66,11 +66,13 @@ func main() {
 	gormApptRepo := repository.NewGormAppointmentRepo(cnn, redisClient)
 	gormProdRepo := repository.NewGormProductRepo(cnn, redisClient)
 	gormAuthRepo := repository.NewGormAuthRepo(cnn)
-	gormSlotRepo := repository.NewGormSlotRepo(cnn)
+	gormSlotRepo := repository.NewGormSlotRepo(cnn, redisClient)
 	gormReviewRepo := repository.NewGormReviewRepo(cnn, redisClient)
 	gormAnalyticRepo := repository.NewGormAnalyticRepo(cnn)
 	gormCouponRepo := repository.NewGormCouponRepo(cnn)
 	gormInfoRepo := repository.NewGormInfoRepo(cnn, redisClient)
+	gormPostRepo := repository.NewGormPostRepo(cnn, redisClient)
+	gormCategoryRepo := repository.NewGormCategoryRepo(cnn, redisClient)
 
 	// CLOUDINARY REPO
 	cloudinaryRepo := repository.NewCloudinaryCloudRepo(cld, redisClient)
@@ -84,11 +86,12 @@ func main() {
 	analyticSvc := service.NewAnalyticService(gormAnalyticRepo)
 	couponSvc := service.NewCouponService(gormCouponRepo)
 	infoSvc := service.NewInfoRepository(gormInfoRepo)
-
+	postSvc := service.NewPostService(gormPostRepo)
+	categorySvc := service.NewCategoryService(gormCategoryRepo)
 	// CLOUDINARY SERVICE
 	cloudinarySvc := service.NewCloudService(cloudinaryRepo)
 
-	r := TransportHTTP.NewRouter(apptSvc, prodSvc, authSvc, slotSvc, revSvc, analyticSvc, couponSvc, infoSvc, cloudinarySvc)
+	r := TransportHTTP.NewRouter(apptSvc, prodSvc, authSvc, slotSvc, revSvc, analyticSvc, couponSvc, infoSvc, cloudinarySvc, postSvc, categorySvc)
 
 	PORT := 9090
 	log.Printf("Servidor iniciado en %d", PORT)

@@ -56,7 +56,7 @@ func (r *GormProductRepository) List(ctx context.Context) ([]domain.Product, err
 	}
 
 	// 2. Si no estaba en el cache, realizar consulta sql
-	if err := r.db.WithContext(ctx).Find(&appt).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Category").Find(&appt).Error; err != nil {
 		return nil, err
 	}
 
@@ -71,10 +71,34 @@ func (r *GormProductRepository) List(ctx context.Context) ([]domain.Product, err
 }
 
 func (r *GormProductRepository) Update(ctx context.Context, Product *domain.Product) error {
-	return r.db.WithContext(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Omit("created_at").Save(Product).Error
+
+	var (
+		prodCacheKey string = "products"
+	)
+
+	// Invalidate cache after updating a product
+	if err := r.redis.Del(ctx, prodCacheKey).Err(); err != nil {
+		log.Println("Error invalidating cache after product update:", err)
+	}
+
+	if err := r.db.WithContext(ctx).Model(&domain.Product{}).Where("id = ?", Product.ID).Updates(Product).Error; err != nil {
+		log.Println("Error updating post:", err)
+		return err
+	}
+
+	return nil
 }
 
 func (r *GormProductRepository) Delete(ctx context.Context, id uint) error {
+	var (
+		prodCacheKey string = "products"
+	)
+
+	// Invalidate cache after updating a product
+	if err := r.redis.Del(ctx, prodCacheKey).Err(); err != nil {
+		log.Println("Error invalidating cache after product update:", err)
+	}
+
 	return r.db.WithContext(ctx).Delete(&domain.Product{}, id).Error
 }
 
@@ -83,11 +107,15 @@ func (r *GormProductRepository) Popular(ctx context.Context) ([]domain.Product, 
 
 	err := r.db.WithContext(ctx).
 		Raw(`
-			SELECT * FROM products
-			ORDER BY
-				CASE WHEN number_of_reviews > 0 THEN rating_sum / number_of_reviews ELSE 0 END DESC
-			LIMIT 3
-		`).
+		SELECT p.* 
+		FROM products p
+		JOIN appointment_products ap ON ap.product_id = p.id
+		JOIN appointments a ON a.id = ap.appointment_id
+		WHERE a.status <> 'cancelled'
+		GROUP BY p.id
+		ORDER BY COUNT(*) DESC
+		LIMIT 3
+	`).
 		Scan(&products).Error
 
 	if err != nil {

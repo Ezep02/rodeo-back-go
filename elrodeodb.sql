@@ -7,7 +7,6 @@ CREATE TABLE users (
   surname VARCHAR(70) DEFAULT NULL, 
   password VARCHAR(70) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
-  activo BOOL DEFAULT TRUE,
   is_admin BOOL DEFAULT FALSE,
   is_barber bool default false,
   phone_number VARCHAR(30), 
@@ -22,7 +21,7 @@ CREATE TABLE products (
   name VARCHAR(100) NOT NULL,
   description VARCHAR(500),
   price DECIMAL(12, 2) NOT NULL,
-  category VARCHAR(40) NOT NULL,
+  category_id BIGINT UNSIGNED NOT NULL, -- ACTUALIZAR
   preview_url TEXT,
   rating_sum int default 0,
   number_of_reviews int default 0,
@@ -32,11 +31,13 @@ CREATE TABLE products (
 
 CREATE TABLE slots (
     id SERIAL PRIMARY KEY,
-    date datetime not null,
+    date DATETIME NOT NULL,
     time VARCHAR(30) NOT NULL,
     is_booked BOOLEAN DEFAULT FALSE,
+    barber_id BIGINT UNSIGNED NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_barber_id FOREIGN KEY (barber_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE appointments (
@@ -76,13 +77,44 @@ CREATE TABLE coupons (
     CONSTRAINT fk_user_coupon FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE posts (
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    preview_url VARCHAR(2048),
+    description TEXT,
+    is_published BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_posts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
+-- Categorias ( LABELS )
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    color VARCHAR(7), -- #RRGGBB
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- relacion many to many entre product y categories
+CREATE TABLE service_categories (
+    service_id BIGINT UNSIGNED NOT NULL,
+    category_id BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (service_id, category_id),
+    FOREIGN KEY (service_id) REFERENCES products(id),
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+
 
 
 -- Relacion many to many entre products y appointment
 CREATE TABLE appointment_products (
     appointment_id BIGINT UNSIGNED REFERENCES appointments(id) ON DELETE CASCADE,
-    product_id BIGINT UNSIGNED REFERENCES products(id) ON DELETE CASCADE,
-    PRIMARY KEY (appointment_id, product_id)
+    service_id BIGINT UNSIGNED REFERENCES services(id) ON DELETE CASCADE,
+    PRIMARY KEY (appointment_id, service_id)
 );
 
 

@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/cloudinary/cloudinary-go/v2/api"
@@ -20,17 +21,19 @@ type AuthRepository interface {
 	Register(ctx context.Context, user *User) error
 	Login(ctx context.Context, email string) (*User, error)
 	GetByID(ctx context.Context, id uint) (*User, error)
+	GetByEmail(ctx context.Context, email string) (*User, error)
 }
 
 type AppointmentRepository interface {
 	Create(ctx context.Context, appointment *Appointment) error
 	Update(ctx context.Context, appointment *Appointment, slot_id uint) error
 	Delete(ctx context.Context, id uint) error
-	List(ctx context.Context) ([]Appointment, error)
+	ListByDateRange(ctx context.Context, start, end time.Time) ([]Appointment, error)
 	GetByID(ctx context.Context, id uint) (*Appointment, error)
 	GetByUserID(ctx context.Context, id uint) ([]Appointment, error)
 }
 
+// TODO REEMPLAZAR POR SERVICES
 type ProductRepository interface {
 	Create(ctx context.Context, product *Product) error
 	Update(ctx context.Context, product *Product) error
@@ -45,7 +48,7 @@ type SlotRepository interface {
 	Update(ctx context.Context, slot *[]Slot) error
 	Delete(ctx context.Context, slot *[]Slot) error
 	GetByID(ctx context.Context, id uint) (*Slot, error)
-	List(ctx context.Context, offset int) ([]Slot, error)
+	ListByDateRange(ctx context.Context, start, end time.Time) ([]Slot, error)
 	ListByDate(ctx context.Context, date time.Time) ([]Slot, error)
 }
 
@@ -77,6 +80,23 @@ type InformationRepository interface {
 }
 
 type CloudinaryRepository interface {
-	List(ctx context.Context) ([]api.BriefAssetResult, error)
+	List(ctx context.Context, next_cursor string) ([]api.BriefAssetResult, string, error)
 	Video(ctx context.Context) ([]api.BriefAssetResult, error)
+	Upload(ctx context.Context, file io.Reader, filename string) error
+}
+
+type PostRepository interface {
+	List(ctx context.Context, offset int) ([]Post, error)
+	Create(ctx context.Context, post *Post) error
+	Update(ctx context.Context, post *Post, post_id uint) error
+	Delete(ctx context.Context, post_id uint) error
+	GetByID(ctx context.Context, id uint) (*Post, error)
+	Count(ctx context.Context) (int64, error)
+}
+
+type CategoryRepository interface {
+	Create(ctx context.Context, category *Category) error
+	Update(ctx context.Context, category *Category) error
+	Delete(ctx context.Context, id uint) error
+	List(ctx context.Context) ([]Category, error)
 }

@@ -3,12 +3,15 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"time"
 
 	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api"
 	"github.com/cloudinary/cloudinary-go/v2/api/admin"
+	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/ezep02/rodeo/internal/domain"
 	"github.com/redis/go-redis/v9"
 )
@@ -22,27 +25,33 @@ func NewCloudinaryCloudRepo(cloud *cloudinary.Cloudinary, redis *redis.Client) d
 	return &CloudinaryRepository{cloud, redis}
 }
 
-func (r *CloudinaryRepository) List(ctx context.Context) ([]api.BriefAssetResult, error) {
+var (
+	rodeo_video_container = "rodeo_video_container"
+	rodeo_img_container   = "rodeo_img_container"
+)
+
+func (r *CloudinaryRepository) List(ctx context.Context, next_cursor string) ([]api.BriefAssetResult, string, error) {
 	var (
-		resourceKey string = "cloudinaryImagesKey"
+		resourceKey string = fmt.Sprintf("cloudinaryImagesKey:next-cursor-%s", next_cursor)
 		imgInCache  []api.BriefAssetResult
 	)
 
-	// 1. Verificar si ya están en el cache
+	//1. Verificar si ya están en el cache
 	dataInCache, err := r.redis.Get(ctx, resourceKey).Result()
 	if err == nil {
 		if err := json.Unmarshal([]byte(dataInCache), &imgInCache); err == nil {
-			return imgInCache, nil
+			return imgInCache, next_cursor, nil
 		}
 	}
 
 	// 2. Consultar Cloudinary
-	res, err := r.cloud.Admin.Assets(ctx, admin.AssetsParams{
-		AssetType:  "image",
-		MaxResults: 10,
+	res, err := r.cloud.Admin.AssetsByAssetFolder(ctx, admin.AssetsByAssetFolderParams{
+		AssetFolder: rodeo_img_container,
+		MaxResults:  10,
+		NextCursor:  next_cursor,
 	})
 	if err != nil {
-		return nil, err
+		return nil, next_cursor, err
 	}
 
 	// 3. Cachear los datos recuperados
@@ -56,7 +65,7 @@ func (r *CloudinaryRepository) List(ctx context.Context) ([]api.BriefAssetResult
 		}
 	}
 
-	return res.Assets, nil
+	return res.Assets, res.NextCursor, nil
 }
 
 func (r *CloudinaryRepository) Video(ctx context.Context) ([]api.BriefAssetResult, error) {
@@ -74,7 +83,7 @@ func (r *CloudinaryRepository) Video(ctx context.Context) ([]api.BriefAssetResul
 	}
 
 	resp, err := r.cloud.Admin.AssetsByAssetFolder(ctx, admin.AssetsByAssetFolderParams{
-		AssetFolder: "rodeo_video_container",
+		AssetFolder: rodeo_video_container,
 		MaxResults:  3,
 	})
 
@@ -94,4 +103,19 @@ func (r *CloudinaryRepository) Video(ctx context.Context) ([]api.BriefAssetResul
 	}
 
 	return resp.Assets, nil
+}
+
+func (r *CloudinaryRepository) Upload(ctx context.Context, file io.Reader, filename string) error {
+	_, err := r.cloud.Upload.Upload(ctx, file, uploader.UploadParams{
+		PublicID:    filename,
+		AssetFolder: rodeo_img_container,
+	})
+
+	if err != nil {
+		log.Println("Error uploading file to Cloudinary:", err)
+		return err
+	}
+
+	log.Println("File uploaded successfully to Cloudinary")
+	return nil
 }

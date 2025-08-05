@@ -31,6 +31,8 @@ type RegisterUserRequest struct {
 	Password     string `json:"password" binding:"required"`
 	Email        string `json:"email" binding:"required"`
 	Phone_number string `json:"phone_number"`
+	IsAdmin      bool   `json:"is_admin"`
+	IsBarber     bool   `json:"is_barber"`
 }
 
 type LoginUserRequest struct {
@@ -74,6 +76,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Surname:      req.Surname,
 		Password:     hash,
 		Phone_number: req.Phone_number,
+		Email:        req.Email,
+		Is_admin:     req.IsAdmin,
+		Is_barber:    req.IsBarber,
 	}
 
 	// 4. Registrar usuario
@@ -82,11 +87,27 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// TODO: crear token de sesion
+	// 5. Recuperar usuario
+	existing, err := h.svc.GetByEamil(c.Request.Context(), req.Email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "se registro, pero no fue posible recuperar al usuario"})
+		return
+	}
+
+	// 6. Crear token de sesion
+	tokenStr, err := jwt.GenerateToken(*existing, time.Now().Add(24*time.Hour*30))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "error creando token de sesion"})
+		return
+	}
+
+	// 7. Establece la cookie con el token
+	httpCookie := jwt.NewAuthTokenCookie(tokenStr)
+	http.SetCookie(c.Writer, httpCookie)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "registro exitoso",
-		"user":    user,
+		"message": "operacion exitosa",
+		"user":    existing,
 	})
 }
 
