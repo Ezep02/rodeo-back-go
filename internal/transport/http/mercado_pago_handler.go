@@ -48,7 +48,7 @@ type JWTAppointmentClaim struct {
 
 var (
 	payment_token           = os.Getenv("PAYMENT_TOKEN")
-	notification_url string = "https://9035b9d50a53.ngrok-free.app" // URL de notificación
+	notification_url string = "https://381f7f3c5696.ngrok-free.app" // URL de notificación
 )
 
 func NewMepaHandler(prodSvc *service.ProductService, apptSvc *service.AppointmentService, slotSvc *service.SlotService) *MepaHandler {
@@ -117,7 +117,6 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 
 	// 8. Recuperar productos mediante sus IDs
 	for _, prodID := range req.Products {
-
 		existingProd, err := h.prodSvc.GetByID(c.Request.Context(), prodID)
 		if err != nil {
 			if err == domain.ErrNotFound {
@@ -128,16 +127,24 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 			return
 		}
 
-		price := existingProd.Price
+		// Inicializamos el precio unitario con el precio base del producto
+		unitPrice := existingProd.Price
 
-		if req.PaymentPercentage < 100 {
-			price = existingProd.Price * float64(req.PaymentPercentage) / 100
+		// Ajustar el precio si el producto tiene un descuento aplicado
+		if existingProd.PromotionDiscount > 0 && existingProd.PromotionEndDate.After(time.Now()) {
+			unitPrice = existingProd.Price * (1 - float64(existingProd.PromotionDiscount)/100.0)
 		}
 
+		// Aplicar el porcentaje de pago si es menor al 100%
+		if req.PaymentPercentage < 100 {
+			unitPrice = unitPrice * float64(req.PaymentPercentage) / 100
+		}
+
+		// El precio final para este ítem es `unitPrice`
 		prefItem = append(prefItem, preference.ItemRequest{
 			ID:          strconv.Itoa(int(existingProd.ID)),
 			Title:       existingProd.Name,
-			UnitPrice:   price,
+			UnitPrice:   unitPrice,
 			Quantity:    1,
 			Description: existingProd.Description,
 		})

@@ -41,6 +41,7 @@ type ProductRepository interface {
 	List(ctx context.Context) ([]Product, error)
 	GetByID(ctx context.Context, id uint) (*Product, error)
 	Popular(ctx context.Context) ([]Product, error)
+	Promotion(ctx context.Context) ([]Product, error)
 }
 
 type SlotRepository interface {
@@ -57,6 +58,8 @@ type ReviewRepository interface {
 	Update(ctx context.Context, review *Review) error
 	Delete(ctx context.Context, id uint) error
 	List(ctx context.Context) ([]Appointment, error)
+	ListByProductID(ctx context.Context, productID uint) ([]Review, error)
+	ListByUserID(ctx context.Context, userID uint, offset int) ([]Appointment, error)
 }
 
 type AnalyticRepository interface {
@@ -99,4 +102,5 @@ type CategoryRepository interface {
 	Update(ctx context.Context, category *Category) error
 	Delete(ctx context.Context, id uint) error
 	List(ctx context.Context) ([]Category, error)
+	GetByID(ctx context.Context, id uint) (*Category, error)
 }

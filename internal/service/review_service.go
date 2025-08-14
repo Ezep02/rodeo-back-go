@@ -34,3 +34,15 @@ func (s *ReviewService) Create(ctx context.Context, review *domain.Review) error
 func (s *ReviewService) List(ctx context.Context) ([]domain.Appointment, error) {
 	return s.revRepo.List(ctx)
 }
+
+func (s *ReviewService) ListByProductID(ctx context.Context, productID uint) ([]domain.Review, error) {
+	return s.revRepo.ListByProductID(ctx, productID)
+}
+
+func (s *ReviewService) ListByUserID(ctx context.Context, userID uint, offset int) ([]domain.Appointment, error) {
+	if offset < 0 {
+		offset = 0
+	}
+
+	return s.revRepo.ListByUserID(ctx, userID, offset)
+}

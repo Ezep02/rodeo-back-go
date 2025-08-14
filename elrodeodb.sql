@@ -21,10 +21,13 @@ CREATE TABLE products (
   name VARCHAR(100) NOT NULL,
   description VARCHAR(500),
   price DECIMAL(12, 2) NOT NULL,
-  category_id BIGINT UNSIGNED NOT NULL, -- ACTUALIZAR
+  category_id BIGINT UNSIGNED NOT NULL, 
   preview_url TEXT,
   rating_sum int default 0,
   number_of_reviews int default 0,
+  promotion_discount int default 0,
+  has_promotion BOOLEAN default false,
+  promotion_end_date DATETIME DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

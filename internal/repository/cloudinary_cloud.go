@@ -59,7 +59,7 @@ func (r *CloudinaryRepository) List(ctx context.Context, next_cursor string) ([]
 	if err != nil {
 		log.Println("Error serializando imágenes para cache:", err)
 	} else {
-		err = r.redis.Set(ctx, resourceKey, data, 10*time.Minute).Err()
+		err = r.redis.Set(ctx, resourceKey, data, 3*time.Minute).Err()
 		if err != nil {
 			log.Println("Error guardando en cache:", err)
 		}

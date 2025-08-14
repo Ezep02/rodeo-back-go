@@ -81,7 +81,19 @@ func (r *GormProductRepository) Update(ctx context.Context, Product *domain.Prod
 		log.Println("Error invalidating cache after product update:", err)
 	}
 
-	if err := r.db.WithContext(ctx).Model(&domain.Product{}).Where("id = ?", Product.ID).Updates(Product).Error; err != nil {
+	updates := map[string]any{
+		"name":               Product.Name,
+		"price":              Product.Price,
+		"description":        Product.Description,
+		"category_id":        Product.CategoryID,
+		"preview_url":        Product.PreviewUrl,
+		"promotion_discount": Product.PromotionDiscount,
+		"promotion_end_date": Product.PromotionEndDate,
+		"has_promotion":      Product.HasPromotion,
+		"updated_at":         Product.UpdatedAt,
+	}
+
+	if err := r.db.WithContext(ctx).Model(&domain.Product{}).Where("id = ?", Product.ID).Updates(updates).Error; err != nil {
 		log.Println("Error updating post:", err)
 		return err
 	}
@@ -117,6 +129,22 @@ func (r *GormProductRepository) Popular(ctx context.Context) ([]domain.Product, 
 		LIMIT 3
 	`).
 		Scan(&products).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
+}
+
+func (r *GormProductRepository) Promotion(ctx context.Context) ([]domain.Product, error) {
+	var products []domain.Product
+
+	err := r.db.WithContext(ctx).
+		Raw(`
+		SELECT * FROM products 
+		WHERE has_promotion = ? 
+		AND promotion_end_date > NOW()
+	`, true).Scan(&products).Error
 
 	if err != nil {
 		return nil, err

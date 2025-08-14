@@ -126,6 +126,7 @@ func (h *AppointmentHandler) Create(c *gin.Context) {
 	}
 
 	if err := h.svc.Schedule(c.Request.Context(), &newAppt); err != nil {
+		log.Println("Error creando cita:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -137,6 +138,8 @@ func (h *AppointmentHandler) Create(c *gin.Context) {
 		return
 	}
 	newAppt.Slot = *slot
+
+	log.Println("[CREANDO CITA] Nueva cita creada con ID:", newAppt.ID)
 
 	// 10. Enviar stream de datos
 	ssePayload := sse.SSEMessage{
@@ -322,11 +325,6 @@ func (h *AppointmentHandler) Cancel(c *gin.Context) {
 		return
 	}
 
-	// Si tiene solo la reserva, no hay cupon
-
-	// Si hay recargo, generar cupon
-	c.JSON(http.StatusOK, "cita cancelada exitosamente")
-
 	// Si pago completo, se crea un cupon
 	if req.Recharge > 0 {
 
@@ -352,18 +350,20 @@ func (h *AppointmentHandler) Cancel(c *gin.Context) {
 				return
 			}
 
-			// Comunicar al dashboard de la cancelacion
-			ssePayload := sse.SSEMessage{
-				Type: "appointment_cancelled",
-				Data: exist,
-			}
-
-			jsonMsg, _ := json.Marshal(ssePayload)
-			h.sseServer.Hub.Broadcast(string(jsonMsg))
-
 			log.Println("Cupon creado correctamente")
 		}(user.ID, req.Recharge, coupon)
 	}
+
+	// Comunicar al dashboard de la cancelacion
+	ssePayload := sse.SSEMessage{
+		Type: "appointment_cancelled",
+		Data: exist,
+	}
+
+	jsonMsg, _ := json.Marshal(ssePayload)
+	h.sseServer.Hub.Broadcast(string(jsonMsg))
+	// Si hay recargo, generar cupon
+	c.JSON(http.StatusOK, "cita cancelada exitosamente")
 
 }
 
@@ -431,6 +431,7 @@ func (h *AppointmentHandler) GetByUserID(c *gin.Context) {
 }
 
 func (h *AppointmentHandler) Surcharge(c *gin.Context) {
+
 	// 1. Leer ACCESS_TOKEN
 	mpAccessToken := os.Getenv("MP_ACCESS_TOKEN")
 	if mpAccessToken == "" {

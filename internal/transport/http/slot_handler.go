@@ -52,6 +52,8 @@ func (h *SlotHandler) Create(c *gin.Context) {
 		return
 	}
 
+	log.Println("req", req)
+
 	cookie, err := c.Cookie(auth_token)
 	if err != nil {
 		log.Println("error", err)

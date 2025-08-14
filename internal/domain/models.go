@@ -41,17 +41,20 @@ type Appointment struct {
 }
 
 type Product struct {
-	ID              uint      `gorm:"primaryKey" json:"id"`
-	Name            string    `gorm:"size:100;not null" json:"name"`
-	Description     string    `gorm:"size:255" json:"description"`
-	Price           float64   `gorm:"not null" json:"price"`
-	CategoryID      uint      `gorm:"not null" json:"category_id"` // <- Este es clave
-	Category        *Category `gorm:"foreignKey:CategoryID;references:ID" json:"category"`
-	RatingSum       int       `gorm:"default:0" json:"rating_sum"`
-	NumberOfReviews int       `gorm:"default:0" json:"number_of_reviews"`
-	PreviewUrl      string    `json:"preview_url"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID                uint       `gorm:"primaryKey" json:"id"`
+	Name              string     `gorm:"size:100;not null" json:"name"`
+	Description       string     `gorm:"size:255" json:"description"`
+	Price             float64    `gorm:"not null" json:"price"`
+	CategoryID        uint       `gorm:"not null" json:"category_id"` // <- Este es clave
+	Category          *Category  `gorm:"foreignKey:CategoryID;references:ID" json:"category"`
+	RatingSum         int        `gorm:"default:0" json:"rating_sum"`
+	NumberOfReviews   int        `gorm:"default:0" json:"number_of_reviews"`
+	PromotionDiscount int        `json:"promotion_discount"` // porcentaje de descuento
+	PromotionEndDate  *time.Time `json:"promotion_end_date"`
+	HasPromotion      bool       `gorm:"default:false" json:"has_promotion"`
+	PreviewUrl        string     `json:"preview_url"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 type Category struct {

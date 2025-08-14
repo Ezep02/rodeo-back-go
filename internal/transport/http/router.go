@@ -26,7 +26,7 @@ func NewRouter(
 	// Middleware de CORS
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:4173")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if c.Request.Method == "OPTIONS" {
@@ -87,13 +87,14 @@ func NewRouter(
 		// Rutas de Product
 		products := v1.Group("/products")
 		{
-			prodHandler := NewProductHandler(prodSvc)
+			prodHandler := NewProductHandler(prodSvc, categorySvc)
 			products.GET("/", prodHandler.List)
 			products.POST("/", prodHandler.Create)
 			products.GET("/:id", prodHandler.GetByID)
 			products.PUT("/:id", prodHandler.Update)
 			products.DELETE("/:id", prodHandler.Delete)
 			products.GET("/popular", prodHandler.Popular)
+			products.GET("/promotion", prodHandler.Promotion)
 		}
 
 		// Rutas de Slots
@@ -113,6 +114,8 @@ func NewRouter(
 			reviewHandler := NewReviewHandler(revSvc)
 			reviews.POST("/", reviewHandler.Create)
 			reviews.GET("/", reviewHandler.List)
+			reviews.GET("/product/:id", reviewHandler.ListByProductID)
+			reviews.GET("/user/:id/page/:offset", reviewHandler.ListByUserID)
 		}
 
 		// Rutas de analiticas

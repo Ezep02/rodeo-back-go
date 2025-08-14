@@ -95,3 +95,7 @@ func (s *ProductService) Delete(ctx context.Context, id uint) error {
 func (s *ProductService) Popular(ctx context.Context) ([]domain.Product, error) {
 	return s.prodRepo.Popular(ctx)
 }
+
+func (s *ProductService) Promotion(ctx context.Context) ([]domain.Product, error) {
+	return s.prodRepo.Promotion(ctx)
+}

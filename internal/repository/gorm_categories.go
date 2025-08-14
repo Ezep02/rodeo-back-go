@@ -41,3 +41,12 @@ func (r *GormCategoryRepository) List(ctx context.Context) ([]domain.Category, e
 
 	return categories, nil
 }
+
+func (r *GormCategoryRepository) GetByID(ctx context.Context, id uint) (*domain.Category, error) {
+	var category domain.Category
+	if err := r.db.WithContext(ctx).First(&category, id).Error; err != nil {
+		return nil, err
+	}
+
+	return &category, nil
+}

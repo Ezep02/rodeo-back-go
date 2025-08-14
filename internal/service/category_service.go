@@ -59,3 +59,18 @@ func (s *CategoryService) ListCategories(ctx context.Context) ([]domain.Category
 
 	return categories, nil
 }
+
+func (s *CategoryService) GetCategoryByID(ctx context.Context, id uint) (*domain.Category, error) {
+	// 1. Validar que tenga ID
+	if id == 0 {
+		return nil, errors.New("el ID de la categoria es un campo requerido")
+	}
+
+	// 2. Obtener categoria por ID
+	category, err := s.authRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return category, nil
+}
