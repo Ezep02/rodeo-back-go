@@ -22,9 +22,6 @@ func NewGormSlotRepo(db *gorm.DB, redis *redis.Client) domain.SlotRepository {
 }
 
 func (r *GormSlotRepository) Create(ctx context.Context, slot *[]domain.Slot) error {
-
-	// Crear los slots en la base de datos
-
 	return r.db.WithContext(ctx).Create(slot).Error
 }
 

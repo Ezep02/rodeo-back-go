@@ -97,7 +97,7 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 	log.Println("slot id", req.SlotID)
 	existingAppt, err := h.slotSvc.GetByID(c.Request.Context(), req.SlotID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.JSON(500, gin.H{"error": "Horario ocupado"})
 		return
 	}
 

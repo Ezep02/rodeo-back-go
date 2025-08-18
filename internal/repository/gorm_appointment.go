@@ -23,6 +23,15 @@ func NewGormAppointmentRepo(db *gorm.DB, redis *redis.Client) domain.Appointment
 
 func (r *GormAppointmentRepository) Create(ctx context.Context, appointment *domain.Appointment) error {
 
+	var (
+		cacheKey = fmt.Sprintf("slot-start:%s-end:%s", time.Now(), time.Now().Add(24*time.Hour))
+	)
+
+	// Crear los slots en la base de datos
+	if err := r.redis.Del(ctx, cacheKey).Err(); err != nil {
+		log.Println("Error invalidating cache after product update:", err)
+	}
+
 	r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 
 		// Crear appointment
