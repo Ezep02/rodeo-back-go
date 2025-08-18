@@ -55,3 +55,11 @@ func (s *CouponService) GenerateCoupon(length int) (string, error) {
 	}
 	return string(coupon), nil
 }
+
+func (s *CouponService) GetByCode(ctx context.Context, code string) (*domain.Coupon, error) {
+	return s.couponRepo.GetByCode(ctx, code)
+}
+
+func (s *CouponService) GetByUserID(ctx context.Context, userID uint) ([]domain.Coupon, error) {
+	return s.couponRepo.GetByUserID(ctx, userID)
+}

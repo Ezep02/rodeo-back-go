@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ezep02/rodeo/internal/domain"
@@ -47,7 +48,8 @@ func (h *CouponHandler) Create(c *gin.Context) {
 	// 3. Recuperar id de cliente si es que existe desde la session
 	cookie, err := c.Cookie(auth_token)
 	if err != nil {
-		log.Println("error", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se encontro cookie de sesion"})
+		return
 	}
 
 	// 4. Validar la cookie
@@ -83,5 +85,79 @@ func (h *CouponHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "cupon creado con exito",
 		"coupon":  newCoupon,
+	})
+}
+
+func (h *CouponHandler) GetByUserID(c *gin.Context) {
+
+	var (
+		auth_token = os.Getenv("AUTH_TOKEN")
+		userIDStr  = c.Param("id")
+	)
+
+	if userIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
+		return
+	}
+
+	// 1. convertir userID a int
+	id, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID invalido"})
+		return
+	}
+
+	// 2. Recuperar cookie de sesion
+	cookie, err := c.Cookie(auth_token)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se encontro cookie de sesion"})
+		return
+	}
+
+	// 3. Validar la sesion
+	user, err := jwt.VerfiySessionToken(cookie)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalido o expirado"})
+		return
+	}
+
+	// 4. Validar que el usuario sea el mismo que el del ID
+	if user.ID != uint(id) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "No tienes permiso para acceder a estos cupones"})
+		return
+	}
+
+	// 5. Recuperar cupones por userID
+	coupons, err := h.svc.GetByUserID(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving coupons"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"coupons": coupons,
+	})
+}
+
+func (h *CouponHandler) GetByCode(c *gin.Context) {
+
+	code := c.Param("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Coupon code is required"})
+		return
+	}
+
+	coupon, err := h.svc.GetByCode(c.Request.Context(), code)
+	if err != nil {
+		if err == domain.ErrNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Coupon not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving coupon"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"coupon": coupon,
 	})
 }

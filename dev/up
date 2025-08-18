@@ -30,10 +30,11 @@ done
 
 if [ "$need_start" = true ]; then
   echo "🚀 Iniciando docker-compose..."
-  docker-compose -f dev/docker-compose.yml up -d
+  docker compose -f dev/docker-compose.yml up -d
 else
   echo "✅ Todos los contenedores estan activos. No se necesita reiniciar."
 fi
+
 
 # Levantar configuracion de ngrok
 ngrok_is_active=false

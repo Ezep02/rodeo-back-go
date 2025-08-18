@@ -26,6 +26,7 @@ type CreatePreferenceRequest struct {
 	Products          []uint `json:"products"`
 	SlotID            uint   `json:"slotID"`
 	PaymentPercentage uint8  `json:"payment_percentage"`
+	CouponCode        string `json:"coupon_code,omitempty"` // Optional coupon code
 }
 
 type CreateSurchargePrefReq struct {
@@ -48,7 +49,7 @@ type JWTAppointmentClaim struct {
 
 var (
 	payment_token           = os.Getenv("PAYMENT_TOKEN")
-	notification_url string = "https://381f7f3c5696.ngrok-free.app" // URL de notificación
+	notification_url string = "https://4c409d537d3a.ngrok-free.app" // URL de notificación
 )
 
 func NewMepaHandler(prodSvc *service.ProductService, apptSvc *service.AppointmentService, slotSvc *service.SlotService) *MepaHandler {
@@ -182,6 +183,7 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 			"payment_percentage": req.PaymentPercentage,
 			"time":               req.Time,
 			"user_id":            user_id,
+			"coupon_code":        req.CouponCode,
 		},
 		BackURLs: &preference.BackURLsRequest{
 			Success: fmt.Sprintf("http://localhost:5173/payment/success/%s", tokenString),

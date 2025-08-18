@@ -1,5 +1,5 @@
-create database elRodeo;
-use elRodeo;
+create database elrodeodb;
+use elrodeodb;
 
 CREATE TABLE users (
   id SERIAL NOT NULL PRIMARY KEY,  
@@ -116,7 +116,7 @@ CREATE TABLE service_categories (
 -- Relacion many to many entre products y appointment
 CREATE TABLE appointment_products (
     appointment_id BIGINT UNSIGNED REFERENCES appointments(id) ON DELETE CASCADE,
-    service_id BIGINT UNSIGNED REFERENCES services(id) ON DELETE CASCADE,
+    service_id BIGINT UNSIGNED REFERENCES products(id) ON DELETE CASCADE,
     PRIMARY KEY (appointment_id, service_id)
 );
 

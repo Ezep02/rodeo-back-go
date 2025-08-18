@@ -551,3 +551,12 @@ func (h *AppointmentHandler) Reminder(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Correo enviado correctamente"})
 }
+
+type CreateWithCouponReq struct {
+	CouponCode string `json:"coupon_code"`
+	Items      []uint `json:"items"`
+}
+
+func (h *AppointmentHandler) CreateWithCoupon(c *gin.Context) {
+	// TODO: Implementar la creación de cita con cupón
+}

@@ -109,7 +109,14 @@ func (h *ProductHandler) Create(c *gin.Context) {
 }
 
 func (h *ProductHandler) List(c *gin.Context) {
-	Products, err := h.svc.ListAll(c.Request.Context())
+	offsetStr := c.Param("offset")
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Offset invalido"})
+		return
+	}
+
+	Products, err := h.svc.ListAll(c.Request.Context(), offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching Products"})
 		return

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -41,10 +42,10 @@ func (r *GormProductRepository) GetByID(ctx context.Context, id uint) (*domain.P
 	return &appt, nil
 }
 
-func (r *GormProductRepository) List(ctx context.Context) ([]domain.Product, error) {
+func (r *GormProductRepository) List(ctx context.Context, offset int) ([]domain.Product, error) {
 	var (
 		appt         []domain.Product
-		prodCacheKey string = "products"
+		prodCacheKey string = fmt.Sprintf("products-page:%d", offset)
 	)
 
 	// 1. Recuperar productos del cache
@@ -56,7 +57,7 @@ func (r *GormProductRepository) List(ctx context.Context) ([]domain.Product, err
 	}
 
 	// 2. Si no estaba en el cache, realizar consulta sql
-	if err := r.db.WithContext(ctx).Preload("Category").Find(&appt).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Category").Where("promotion_end_date IS NULL OR promotion_end_date > NOW()").Offset(offset).Find(&appt).Error; err != nil {
 		return nil, err
 	}
 

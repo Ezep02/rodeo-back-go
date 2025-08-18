@@ -26,7 +26,7 @@ func NewRouter(
 	// Middleware de CORS
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:4173")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if c.Request.Method == "OPTIONS" {
@@ -71,6 +71,7 @@ func NewRouter(
 			appts.POST("/surcharge", apptHandler.Surcharge)
 			appts.POST("/cancel/:id", apptHandler.Cancel)
 			appts.POST("/reminder/:id", apptHandler.Reminder)
+			appts.POST("/with-coupon", apptHandler.CreateWithCoupon)
 
 			// Rutas especificas de los usuarios
 			appts.GET("/user/:id", apptHandler.GetByUserID)
@@ -88,7 +89,7 @@ func NewRouter(
 		products := v1.Group("/products")
 		{
 			prodHandler := NewProductHandler(prodSvc, categorySvc)
-			products.GET("/", prodHandler.List)
+			products.GET("/page/:offset", prodHandler.List)
 			products.POST("/", prodHandler.Create)
 			products.GET("/:id", prodHandler.GetByID)
 			products.PUT("/:id", prodHandler.Update)
@@ -140,6 +141,8 @@ func NewRouter(
 		coupons := v1.Group("/coupons")
 		{
 			couponHandler := NewCouponHandler(couponSvc)
+			coupons.GET("/user/:id", couponHandler.GetByUserID)
+			coupons.GET("/:code", couponHandler.GetByCode)
 			coupons.POST("/", couponHandler.Create)
 		}
 

@@ -8,6 +8,7 @@ type Metadata struct {
 	SlotID            uint
 	PaymentPercentage int
 	UserID            uint
+	CouponCode        string
 }
 
 type SurchargeMetadata struct {
@@ -57,6 +58,7 @@ func MetadataParser(metadata map[string]any) (*Metadata, error) {
 		SlotID:            uint(slotStr),
 		PaymentPercentage: int(paymentStr),
 		UserID:            userID,
+		CouponCode:        metadata["coupon_code"].(string), // Optional, can be empty
 	}, nil
 }
 

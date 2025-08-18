@@ -28,9 +28,12 @@ func main() {
 	// dbHost := viper.GetString("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 
+	log.Printf("Conectando a la base de datos %s en el puerto %s", dbName, dbPort)
+	log.Printf("Credenciales de la base de datos: %s:%s", dbUser, dbPassword)
+
 	cnn, err := db.DB_Connection(fmt.Sprintf("%s:%s@tcp(127.0.0.1:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", dbUser, dbPassword, dbPort, dbName))
 	if err != nil {
-		log.Fatalf("Error al conectar con la base de datos: %v", err)
+		log.Fatalf("Error al conectar con la base de datos: %v", err.Error())
 	}
 
 	// FIX V1

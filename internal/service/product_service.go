@@ -28,16 +28,18 @@ func (s *ProductService) Create(ctx context.Context, product *domain.Product) er
 	}
 
 	// 3. Validar que el producto no exista
-	existing, err := s.prodRepo.List(ctx)
-	if err != nil {
-		return err
-	}
+	// TODO: buscar por nombre
 
-	for _, p := range existing {
-		if p.Name == product.Name {
-			return errors.New("el producto ya existe")
-		}
-	}
+	// existing, err := s.prodRepo.List(ctx)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// for _, p := range existing {
+	// 	if p.Name == product.Name {
+	// 		return errors.New("el producto ya existe")
+	// 	}
+	// }
 
 	// 4. Crear el producto
 	return s.prodRepo.Create(ctx, product)
@@ -47,8 +49,8 @@ func (s *ProductService) GetByID(ctx context.Context, id uint) (*domain.Product,
 	return s.prodRepo.GetByID(ctx, id)
 }
 
-func (s *ProductService) ListAll(ctx context.Context) ([]domain.Product, error) {
-	return s.prodRepo.List(ctx)
+func (s *ProductService) ListAll(ctx context.Context, offset int) ([]domain.Product, error) {
+	return s.prodRepo.List(ctx, offset)
 }
 
 func (s *ProductService) Update(ctx context.Context, id uint, updatedProd *domain.Product) error {
@@ -63,17 +65,10 @@ func (s *ProductService) Update(ctx context.Context, id uint, updatedProd *domai
 	}
 
 	// 3. Verificar si existe un producto con el mismo nombre
-	allProducts, err := s.prodRepo.List(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, p := range allProducts {
-		// Si el nombre es igual y el ID es diferente, significa que ya existe otro
-		if p.Name == updatedProd.Name && p.ID != id {
-			return errors.New("ya existe un producto con ese nombre")
-		}
-	}
+	// existing, err := s.prodRepo.GetByID(ctx, id)
+	// if err != nil {
+	// 	return err
+	// }
 
 	// 4. Manetener el id original
 	updatedProd.ID = id

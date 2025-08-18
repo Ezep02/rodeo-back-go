@@ -38,7 +38,7 @@ type ProductRepository interface {
 	Create(ctx context.Context, product *Product) error
 	Update(ctx context.Context, product *Product) error
 	Delete(ctx context.Context, id uint) error
-	List(ctx context.Context) ([]Product, error)
+	List(ctx context.Context, offset int) ([]Product, error)
 	GetByID(ctx context.Context, id uint) (*Product, error)
 	Popular(ctx context.Context) ([]Product, error)
 	Promotion(ctx context.Context) ([]Product, error)
@@ -73,9 +73,8 @@ type AnalyticRepository interface {
 
 type CouponRepository interface {
 	Create(ctx context.Context, coupon *Coupon) error
-	// Update(ctx context.Context, id uint) (*Coupon, error)
-	// ListAll(ctx context.Context) ([]Coupon, error)
-	// GetByCode(ctx context.Context, code string) (*Coupon, error)
+	GetByCode(ctx context.Context, code string) (*Coupon, error)
+	GetByUserID(ctx context.Context, userID uint) ([]Coupon, error)
 }
 
 type InformationRepository interface {
