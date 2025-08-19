@@ -37,9 +37,10 @@ type CreateSurchargePrefReq struct {
 }
 
 type MepaHandler struct {
-	apptSvc *service.AppointmentService
-	prodSvc *service.ProductService
-	slotSvc *service.SlotService
+	apptSvc   *service.AppointmentService
+	prodSvc   *service.ProductService
+	slotSvc   *service.SlotService
+	couponSvc *service.CouponService
 }
 
 type JWTAppointmentClaim struct {
@@ -49,129 +50,124 @@ type JWTAppointmentClaim struct {
 
 var (
 	payment_token           = os.Getenv("PAYMENT_TOKEN")
-	notification_url string = "https://4c409d537d3a.ngrok-free.app" // URL de notificación
+	notification_url string = "https://2a27e7a2d706.ngrok-free.app" // URL de notificación
 )
 
-func NewMepaHandler(prodSvc *service.ProductService, apptSvc *service.AppointmentService, slotSvc *service.SlotService) *MepaHandler {
-	return &MepaHandler{apptSvc, prodSvc, slotSvc}
+func NewMepaHandler(
+	prodSvc *service.ProductService,
+	apptSvc *service.AppointmentService,
+	slotSvc *service.SlotService,
+	couponSvc *service.CouponService) *MepaHandler {
+	return &MepaHandler{apptSvc, prodSvc, slotSvc, couponSvc}
 }
 
 func (h *MepaHandler) CreatePreference(c *gin.Context) {
-
 	var (
-		prefItem        []preference.ItemRequest
-		req             CreatePreferenceRequest
-		user_id         uint
-		mp_access_token = os.Getenv("MP_ACCESS_TOKEN")
-		auth_token      = os.Getenv("AUTH_TOKEN")
+		req           CreatePreferenceRequest
+		prefItems     []preference.ItemRequest
+		userID        uint
+		mpAccessToken = os.Getenv("MP_ACCESS_TOKEN")
+		authToken     = os.Getenv("AUTH_TOKEN")
+		couponToApply *domain.Coupon
 	)
 
 	// 1. Validar tokens
-	if mp_access_token == "" {
-		c.JSON(400, gin.H{"error": "Faltan variables de entorno"})
+	if mpAccessToken == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Faltan variables de entorno"})
 		return
 	}
 
-	// 2. Obtener datos del cliente
+	// 2. Parsear request
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
 
-	// 3. Recuperar id de cliente si es que existe desde la session
-	cookie, err := c.Cookie(auth_token)
-	if err != nil {
-		log.Println("error", err)
+	// 3. Recuperar id de cliente desde cookie
+	cookie, _ := c.Cookie(authToken)
+	if user, err := custom_jwt.VerfiySessionToken(cookie); err == nil {
+		userID = user.ID
 	}
 
-	// 4. Validar la cookie
-	user, err := custom_jwt.VerfiySessionToken(cookie)
-	if err != nil {
-		log.Println("token invalido o expirado")
-		user_id = 0
-	} else {
-		user_id = user.ID
-	}
-
-	// 5. Evitar citas duplicadas
-	log.Println("slot id", req.SlotID)
+	// 4. Evitar citas duplicadas
 	existingAppt, err := h.slotSvc.GetByID(c.Request.Context(), req.SlotID)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Horario ocupado"})
-		return
-	}
-
-	if existingAppt.IsBooked {
+	if err != nil || existingAppt.IsBooked {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ya existe una cita para esta fecha y horario"})
 		return
 	}
 
-	// 6. Iniciar configuracion de Mercado Pago
-	cfg, err := config.New(mp_access_token)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Error al configurar Mercado Pago"})
-		return
+	// 5. Validar cupón
+	if req.CouponCode != "" {
+		coupon, err := h.couponSvc.GetByCode(c.Request.Context(), req.CouponCode)
+		if err != nil || time.Now().After(coupon.ExpireAt) || !coupon.IsAvailable {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "el codigo de descuento ingresado no es valido o expiro"})
+			return
+		}
+		couponToApply = coupon
 	}
 
-	// 7. Crear cliente de Mercado Pago
+	// 6. Configurar Mercado Pago
+	cfg, err := config.New(mpAccessToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al configurar Mercado Pago"})
+		return
+	}
 	client := preference.NewClient(cfg)
 
-	// 8. Recuperar productos mediante sus IDs
+	// 7. Recuperar productos y calcular precio final
 	for _, prodID := range req.Products {
-		existingProd, err := h.prodSvc.GetByID(c.Request.Context(), prodID)
+		prod, err := h.prodSvc.GetByID(c.Request.Context(), prodID)
 		if err != nil {
+			status := http.StatusInternalServerError
 			if err == domain.ErrNotFound {
-				c.JSON(http.StatusNotFound, gin.H{"error": "producto no encontrado"})
-				return
+				status = http.StatusNotFound
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(status, gin.H{"error": err.Error()})
 			return
 		}
 
-		// Inicializamos el precio unitario con el precio base del producto
-		unitPrice := existingProd.Price
+		unitPrice := prod.Price
 
-		// Ajustar el precio si el producto tiene un descuento aplicado
-		if existingProd.PromotionDiscount > 0 && existingProd.PromotionEndDate.After(time.Now()) {
-			unitPrice = existingProd.Price * (1 - float64(existingProd.PromotionDiscount)/100.0)
+		// Aplicar descuento de promoción
+		if prod.PromotionDiscount > 0 && prod.PromotionEndDate.After(time.Now()) {
+			unitPrice *= (1 - float64(prod.PromotionDiscount)/100)
 		}
 
-		// Aplicar el porcentaje de pago si es menor al 100%
+		// Aplicar descuento de cupón
+		if couponToApply != nil {
+			unitPrice *= (1 - float64(couponToApply.DiscountPercentage)/100)
+		}
+
+		// Aplicar porcentaje de pago
 		if req.PaymentPercentage < 100 {
-			unitPrice = unitPrice * float64(req.PaymentPercentage) / 100
+			unitPrice *= float64(req.PaymentPercentage) / 100
 		}
 
-		// El precio final para este ítem es `unitPrice`
-		prefItem = append(prefItem, preference.ItemRequest{
-			ID:          strconv.Itoa(int(existingProd.ID)),
-			Title:       existingProd.Name,
+		prefItems = append(prefItems, preference.ItemRequest{
+			ID:          strconv.Itoa(int(prod.ID)),
+			Title:       prod.Name,
 			UnitPrice:   unitPrice,
 			Quantity:    1,
-			Description: existingProd.Description,
+			Description: prod.Description,
 		})
 	}
 
-	// 9. Crear token temporal para redirigir al usuario si todo va bien
+	// 8. Crear token temporal
 	claim := JWTAppointmentClaim{
 		ID: req.SlotID,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(10 * time.Minute).Unix(),
 		},
 	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
-	tokenString, err := token.SignedString([]byte(payment_token))
-
+	tokenString, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claim).SignedString([]byte(payment_token))
 	if err != nil {
-		log.Println("Algo no fue bien creando el token", err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"error": "algo no fue bien creando el token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creando token"})
+		return
 	}
 
-	log.Println("TOKEN", tokenString)
-
-	// 10. Crear preferencia
+	// 9. Crear preferencia
 	request := preference.Request{
-		Items: prefItem,
+		Items: prefItems,
 		Payer: &preference.PayerRequest{
 			Name:    req.CustomerName,
 			Surname: req.CustomerSurname,
@@ -181,8 +177,7 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 			"date":               req.Date,
 			"slot_id":            req.SlotID,
 			"payment_percentage": req.PaymentPercentage,
-			"time":               req.Time,
-			"user_id":            user_id,
+			"user_id":            userID,
 			"coupon_code":        req.CouponCode,
 		},
 		BackURLs: &preference.BackURLsRequest{
@@ -190,14 +185,14 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 		},
 	}
 
-	// 11. Crear preferencia en Mercado Pago
+	// 10. Crear preferencia en Mercado Pago
 	preferenceRes, err := client.Create(c.Request.Context(), request)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Error al crear preferencia en Mercado Pago"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear preferencia en Mercado Pago"})
 		return
 	}
 
-	c.JSON(200, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"message":    "Preferencia creada exitosamente",
 		"init_point": preferenceRes.InitPoint,
 	})

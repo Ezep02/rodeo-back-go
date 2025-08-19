@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"log"
+	"time"
 
 	"github.com/ezep02/rodeo/internal/domain"
 	"gorm.io/gorm"
@@ -33,9 +35,24 @@ func (r *GormCouponRepository) GetByCode(ctx context.Context, code string) (*dom
 func (r *GormCouponRepository) GetByUserID(ctx context.Context, userID uint) ([]domain.Coupon, error) {
 	var coupons []domain.Coupon
 
-	if err := r.db.WithContext(ctx).Where("user_id = ? AND expire_at > NOW()", userID).Find(&coupons).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("user_id = ? AND expire_at > NOW() AND is_available", userID).Find(&coupons).Error; err != nil {
 		return nil, err
 	}
 
 	return coupons, nil
+}
+
+func (r *GormCouponRepository) UpdateStatus(ctx context.Context, code string) error {
+
+	updates := map[string]any{
+		"used_at":      time.Now(),
+		"is_available": false,
+	}
+
+	if err := r.db.WithContext(ctx).Model(&domain.Coupon{}).Where("code = ?", code).Updates(updates).Error; err != nil {
+		log.Println("Error updating coupon:", err)
+		return err
+	}
+
+	return nil
 }

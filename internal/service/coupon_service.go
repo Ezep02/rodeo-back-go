@@ -63,3 +63,7 @@ func (s *CouponService) GetByCode(ctx context.Context, code string) (*domain.Cou
 func (s *CouponService) GetByUserID(ctx context.Context, userID uint) ([]domain.Coupon, error) {
 	return s.couponRepo.GetByUserID(ctx, userID)
 }
+
+func (s *CouponService) UpdateStatus(ctx context.Context, code string) error {
+	return s.couponRepo.UpdateStatus(ctx, code)
+}

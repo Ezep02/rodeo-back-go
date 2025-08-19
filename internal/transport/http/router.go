@@ -79,7 +79,7 @@ func NewRouter(
 
 		mercado_pago := v1.Group("/mercado_pago")
 		{
-			mepHandler := NewMepaHandler(prodSvc, appSvc, slotSvc)
+			mepHandler := NewMepaHandler(prodSvc, appSvc, slotSvc, couponSvc)
 			mercado_pago.POST("/", mepHandler.CreatePreference)
 			mercado_pago.POST("/surcharge", mepHandler.CreateSurchargePreference)
 			mercado_pago.GET("/:token", mepHandler.GetPayment)

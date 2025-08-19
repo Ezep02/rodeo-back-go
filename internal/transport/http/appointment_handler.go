@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ezep02/rodeo/internal/domain"
@@ -112,6 +113,15 @@ func (h *AppointmentHandler) Create(c *gin.Context) {
 			return
 		}
 		products[i] = domain.Product{ID: uint(prodIDUint)}
+	}
+
+	if metadata.CouponCode != "" {
+
+		if err := h.couponSvc.UpdateStatus(c.Request.Context(), strings.ToUpper(metadata.CouponCode)); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error actualizando el estado del cupón"})
+			return
+		}
+		log.Println("[CUPON] Cupón utilizado:", metadata.CouponCode)
 	}
 
 	// 8. Crear la cita
@@ -316,15 +326,6 @@ func (h *AppointmentHandler) Cancel(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Cancel(c.Request.Context(), uint(id)); err != nil {
-		if err == domain.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Cita no encontrada"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
 	// Si pago completo, se crea un cupon
 	if req.Recharge > 0 {
 
@@ -334,10 +335,14 @@ func (h *AppointmentHandler) Cancel(c *gin.Context) {
 			return
 		}
 
+		log.Println("[CUPON] CREANDO CUPON DE DESCUENTO", req.Recharge)
+
 		go func(userID uint, recharge float64, code string) {
 			ctx := context.Background()
+			log.Println("TIEMPO ASIGNADO", req.ExpireAt)
+
 			err := h.couponSvc.Create(ctx, &domain.Coupon{
-				Code:               code,
+				Code:               strings.ToUpper(code),
 				UserID:             userID,
 				DiscountPercentage: recharge,
 				IsAvailable:        true,
@@ -352,6 +357,15 @@ func (h *AppointmentHandler) Cancel(c *gin.Context) {
 
 			log.Println("Cupon creado correctamente")
 		}(user.ID, req.Recharge, coupon)
+	}
+
+	if err := h.svc.Cancel(c.Request.Context(), uint(id)); err != nil {
+		if err == domain.ErrNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Cita no encontrada"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
 	// Comunicar al dashboard de la cancelacion
