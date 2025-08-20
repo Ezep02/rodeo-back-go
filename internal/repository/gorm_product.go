@@ -22,6 +22,16 @@ func NewGormProductRepo(db *gorm.DB, redis *redis.Client) domain.ProductReposito
 }
 
 func (r *GormProductRepository) Create(ctx context.Context, Product *domain.Product) error {
+
+	var (
+		prodCacheKey string = fmt.Sprintf("products-page:%d", 0)
+	)
+
+	// Invalidate cache after creating a new product
+	if err := r.redis.Del(ctx, prodCacheKey).Err(); err != nil {
+		log.Println("Error invalidating cache after product creation:", err)
+	}
+
 	return r.db.WithContext(ctx).Create(Product).Error
 }
 
@@ -74,7 +84,7 @@ func (r *GormProductRepository) List(ctx context.Context, offset int) ([]domain.
 func (r *GormProductRepository) Update(ctx context.Context, Product *domain.Product) error {
 
 	var (
-		prodCacheKey string = "products"
+		prodCacheKey string = fmt.Sprintf("products-page:%d", 0)
 	)
 
 	// Invalidate cache after updating a product
@@ -104,7 +114,7 @@ func (r *GormProductRepository) Update(ctx context.Context, Product *domain.Prod
 
 func (r *GormProductRepository) Delete(ctx context.Context, id uint) error {
 	var (
-		prodCacheKey string = "products"
+		prodCacheKey string = fmt.Sprintf("products-page:%d", 0)
 	)
 
 	// Invalidate cache after updating a product
