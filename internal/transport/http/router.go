@@ -19,6 +19,7 @@ func NewRouter(
 	cloudinarySvc *service.CloudinaryService,
 	postSvc *service.PostService,
 	categorySvc *service.CategoryService,
+	userSvc *service.UserService,
 ) *gin.Engine {
 
 	r := gin.Default()
@@ -58,6 +59,18 @@ func NewRouter(
 			auth.GET("/verify", authHandler.VerifySession)
 			auth.GET("/google", authHandler.GoogleAuth)
 			auth.GET("/callback", authHandler.CallbackHandler)
+			auth.POST("/send-email/:id", authHandler.SendResetPasswordEmail)
+			auth.POST("/reset-password", authHandler.ResetPassword)
+			auth.PUT("/update-user/:id", authHandler.UpdateUser)
+		}
+
+		// Rutas de usuario
+		users := v1.Group("/users")
+		{
+			userHandler := NewUserHandler(userSvc)
+			users.PUT("/:id", userHandler.Update)
+			users.GET("/:id", userHandler.GetByID)
+			users.PUT("/password/:id", userHandler.UpdatePassword)
 		}
 
 		// Rutas de Appointment
@@ -102,7 +115,7 @@ func NewRouter(
 		slots := v1.Group("/slots")
 		{
 			slotHandler := NewSlotHandler(slotSvc)
-			slots.GET("/page/:start/:end", slotHandler.ListByDateRange) // cambiar por page offset
+			slots.GET("/page/:start/:end", slotHandler.ListByDateRange)
 			slots.GET("/date/:id", slotHandler.ListByDate)
 			slots.POST("/", slotHandler.Create)
 			slots.DELETE("/", slotHandler.Delete)

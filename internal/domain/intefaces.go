@@ -104,3 +104,10 @@ type CategoryRepository interface {
 	List(ctx context.Context) ([]Category, error)
 	GetByID(ctx context.Context, id uint) (*Category, error)
 }
+
+type UserRepository interface {
+	GetByID(ctx context.Context, id uint) (*User, error)
+	Update(ctx context.Context, user *User) error
+	GetByEmail(ctx context.Context, email string) (*User, error)
+	UpdatePassword(ctx context.Context, user *User) error
+}

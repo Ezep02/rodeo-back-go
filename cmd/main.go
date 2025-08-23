@@ -76,7 +76,7 @@ func main() {
 	gormInfoRepo := repository.NewGormInfoRepo(cnn, redisClient)
 	gormPostRepo := repository.NewGormPostRepo(cnn, redisClient)
 	gormCategoryRepo := repository.NewGormCategoryRepo(cnn, redisClient)
-
+	gormUserRepo := repository.NewGormUserRepo(cnn, redisClient)
 	// CLOUDINARY REPO
 	cloudinaryRepo := repository.NewCloudinaryCloudRepo(cld, redisClient)
 
@@ -91,10 +91,25 @@ func main() {
 	infoSvc := service.NewInfoRepository(gormInfoRepo)
 	postSvc := service.NewPostService(gormPostRepo)
 	categorySvc := service.NewCategoryService(gormCategoryRepo)
+	userSvc := service.NewUserService(gormUserRepo)
+
 	// CLOUDINARY SERVICE
 	cloudinarySvc := service.NewCloudService(cloudinaryRepo)
 
-	r := TransportHTTP.NewRouter(apptSvc, prodSvc, authSvc, slotSvc, revSvc, analyticSvc, couponSvc, infoSvc, cloudinarySvc, postSvc, categorySvc)
+	r := TransportHTTP.NewRouter(
+		apptSvc,
+		prodSvc,
+		authSvc,
+		slotSvc,
+		revSvc,
+		analyticSvc,
+		couponSvc,
+		infoSvc,
+		cloudinarySvc,
+		postSvc,
+		categorySvc,
+		userSvc,
+	)
 
 	PORT := 9090
 	log.Printf("Servidor iniciado en %d", PORT)
