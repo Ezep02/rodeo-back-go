@@ -86,6 +86,7 @@ type CloudinaryRepository interface {
 	List(ctx context.Context, next_cursor string) ([]api.BriefAssetResult, string, error)
 	Video(ctx context.Context) ([]api.BriefAssetResult, error)
 	Upload(ctx context.Context, file io.Reader, filename string) error
+	UploadAvatar(ctx context.Context, file io.Reader, filename string) (string, error)
 }
 
 type PostRepository interface {
@@ -110,4 +111,6 @@ type UserRepository interface {
 	Update(ctx context.Context, user *User) error
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	UpdatePassword(ctx context.Context, user *User) error
+	UpdateUsername(ctx context.Context, new_username string, id uint) error
+	UpdateAvatar(ctx context.Context, avatar string, id uint) error
 }

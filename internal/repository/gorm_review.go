@@ -60,6 +60,10 @@ func (r *GormReviewRepository) List(ctx context.Context) ([]domain.Appointment, 
 		return nil, err
 	}
 
+	// 3. Cachear resultados opcionalmente
+	data, _ := json.Marshal(appointments)
+	r.redis.Set(ctx, revCacheKey, data, time.Hour)
+
 	return appointments, nil
 }
 

@@ -10,6 +10,9 @@ CREATE TABLE users (
   is_admin BOOL DEFAULT FALSE,
   is_barber bool default false,
   phone_number VARCHAR(30), 
+  last_name_change TIMESTAMP DEFAULT NULL,
+  username VARCHAR(45) NOT NULL UNIQUE,
+  avatar TEXT DEFAULT NULL,
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT NULL
 );

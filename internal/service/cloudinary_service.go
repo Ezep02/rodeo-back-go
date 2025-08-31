@@ -32,3 +32,7 @@ func (s *CloudinaryService) Video(ctx context.Context) ([]api.BriefAssetResult, 
 func (s *CloudinaryService) Upload(ctx context.Context, file io.Reader, filename string) error {
 	return s.cloudRepo.Upload(ctx, file, filename)
 }
+
+func (s *CloudinaryService) UploadAvatar(ctx context.Context, file io.Reader, filename string) (string, error) {
+	return s.cloudRepo.UploadAvatar(ctx, file, filename)
+}

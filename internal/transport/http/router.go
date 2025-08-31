@@ -67,10 +67,13 @@ func NewRouter(
 		// Rutas de usuario
 		users := v1.Group("/users")
 		{
-			userHandler := NewUserHandler(userSvc)
-			users.PUT("/:id", userHandler.Update)
+			userHandler := NewUserHandler(userSvc, cloudinarySvc)
+			users.PUT("/:id", userHandler.Update) // TODO: Actualizar datos del usuario
 			users.GET("/:id", userHandler.GetByID)
+			users.GET("/info", userHandler.UserInfo)
+			users.PUT("/username/:id", userHandler.UpdateUsername)
 			users.PUT("/password/:id", userHandler.UpdatePassword)
+			users.POST("/avatar", userHandler.UploadAvatar)
 		}
 
 		// Rutas de Appointment
@@ -144,6 +147,7 @@ func NewRouter(
 			analytics.GET("/slot-popular-time", analyticHandler.PopularTimeSlot)
 		}
 
+		// Rutas de informacion de la barberia
 		info := v1.Group("/info")
 		{
 			infoHandler := NewInfoHandler(infoSvc)
@@ -166,6 +170,7 @@ func NewRouter(
 			cloudinary.GET("/images", cloudinaryHandler.Images)
 			cloudinary.GET("/video", cloudinaryHandler.Video)
 			cloudinary.POST("/upload", cloudinaryHandler.Upload)
+
 		}
 
 		// Rutas de Posts

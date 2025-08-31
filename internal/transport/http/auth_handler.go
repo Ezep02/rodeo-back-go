@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -287,137 +286,81 @@ func GetGoogleUserInfo(token *oauth2.Token, c *gin.Context) (*GoogleUserInfoReq,
 	return &userInfo, nil
 }
 
-// TODO: Integrar handlers para recuperar contraseña, y envio de token por mail
-
 // Reset de contraseña
 type UserEmailRes struct {
 	Email string `json:"email"`
 }
 
 func (h *AuthHandler) SendResetPasswordEmail(c *gin.Context) {
+	var authToken = os.Getenv("AUTH_TOKEN")
+	var sender = "epereyra443@gmail.com"
+	var password = "hlmg lrgf mtxf aqul " // contraseña de app
+	// var req UserEmailRes
 
-	var (
-		auth_token        = os.Getenv("AUTH_TOKEN")
-		smtpHost   string = "smtp.gmail.com"
-		//smtpPort = "587"
-		sender   string   = "epereyra443@gmail.com"
-		password string   = "cubrrxzypaskawzc"
-		to       []string = []string{"pereyraezequiel15617866@outlook.es"}
-		req      UserEmailRes
-	)
-
-	// 1. Recuperar cookies
-	cookie, err := c.Cookie(auth_token)
+	// Validar cookie
+	cookie, err := c.Cookie(authToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "usuario no autorizado"})
 		return
 	}
-
-	// 2. Validar la cookie
 	if _, err := jwt.VerfiySessionToken(cookie); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalido o expirado"})
 		return
 	}
 
-	// 3. Obtener ID del usuario desde el parametro de la ruta
+	// Obtener ID usuario
 	id := c.Param("id")
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de usuario no proporcionado"})
 		return
 	}
-
-	// 4. Parsear el ID a entero
-	paredID, err := strconv.ParseUint(id, 10, 64)
+	userID, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de usuario invalido"})
 		return
 	}
 
-	// 5. Obtener datos de la consulta
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
-	}
-
-	user, err := h.svc.GetByID(c.Request.Context(), uint(paredID))
+	user, err := h.svc.GetByID(c.Request.Context(), uint(userID))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "error al recuperar el usuario"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "usuario no encontrado"})
 		return
 	}
 
-	// 6. crear un token utilizando los datos de user
+	// Generar token temporal
 	tokenString, err := jwt.GenerateToken(*user, time.Now().Add(15*time.Minute))
 	if err != nil {
 		log.Println("Error creando token:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "algo no fue bien al enviar el email"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "no se pudo generar token"})
 		return
 	}
 
-	// Autenticación con el servidor
-	auth := smtp.PlainAuth("", sender, password, smtpHost)
+	// Crear mensaje HTML
+	subject := "🔐 Recupera tu contraseña"
+	body := fmt.Sprintf(`<html><body>
+	<h2>🔐 Recuperación de contraseña</h2>
+	<p>Hola,</p>
+	<p>Has solicitado restablecer tu contraseña. Haz clic en el botón de abajo:</p>
+	<a href='http://localhost:5173/auth/recover/token=%s' 
+	style='display:inline-block;background-color:#007bff;color:#ffffff;padding:10px 20px;text-decoration:none;border-radius:5px;'>Restablecer contraseña</a>
+	<p>Si no solicitaste esto, ignora este mensaje.</p>
+	<p>Saludos,<br>Equipo de Soporte</p>
+	</body></html>`, tokenString)
 
-	// Crear conexión segura con TLS
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-		ServerName:         smtpHost,
-	}
+	msg := []byte(fmt.Sprintf("Subject: %s\r\nMIME-version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n%s", subject, body))
 
-	// Establecer conexión con el servidor SMTP
-	conn, err := tls.Dial("tcp", smtpHost+":465", tlsConfig) // Usa puerto 465 para TLS directo
+	// Enviar correo
+	err = smtp.SendMail(
+		"smtp.gmail.com:587",
+		smtp.PlainAuth("", sender, password, "smtp.gmail.com"),
+		sender,
+		[]string{"pereyraezequiel15617866@outlook.es"},
+		msg,
+	)
 	if err != nil {
-		log.Fatal("Error en conexión TLS:", err)
+		log.Println("Error enviando email:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "no se pudo enviar el email"})
+		return
 	}
-	client, err := smtp.NewClient(conn, smtpHost)
-	if err != nil {
-		log.Fatal("Error creando cliente SMTP:", err)
-	}
-
-	// Autenticarse
-	if err = client.Auth(auth); err != nil {
-		log.Fatal("Error en autenticación:", err)
-	}
-
-	// Configurar el remitente y destinatario
-	if err = client.Mail(sender); err != nil {
-		log.Fatal(err)
-	}
-	for _, recipient := range to {
-		if err = client.Rcpt(recipient); err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	// Escribir el mensaje
-	wc, err := client.Data()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	msg := fmt.Sprintf("Subject: 🔐 Recupera tu contraseña\r\n"+
-		"MIME-Version: 1.0\r\n"+
-		"Content-Type: text/html; charset=\"UTF-8\"\r\n"+
-		"\r\n"+
-		"<html><body>"+
-		"<h2>🔐 Recuperación de contraseña</h2>"+
-		"<p>Hola,</p>"+
-		"<p>Has solicitado restablecer tu contraseña. Haz clic en el botón de abajo:</p>"+
-		"<a href='http://localhost:5173/auth/recover/token=%s' "+
-		"style='display:inline-block;background-color:#007bff;color:#ffffff;padding:10px 20px;text-decoration:none;border-radius:5px;'>Restablecer contraseña</a>"+
-		"<p>Si no solicitaste esto, ignora este mensaje.</p>"+
-		"<p>Saludos,<br>Equipo de Soporte</p>"+
-		"</body></html>", tokenString)
-	_, err = wc.Write([]byte(msg))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = wc.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Cerrar conexión
-	client.Quit()
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Si el correo es válido, recibirás un email con instrucciones.",

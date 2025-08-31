@@ -46,6 +46,27 @@ func (s *UserService) Update(ctx context.Context, user *domain.User) error {
 		return errors.New("nombre requerido")
 	}
 
+	if user.Surname == "" {
+		return errors.New("apellido requerido")
+	}
+
+	// verificar existencia del usuario
+	if _, err := s.userRepo.GetByID(ctx, user.ID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return errors.New("usuario no encontrado")
+		}
+	}
+
+	// si quiere cambiar el email, verificar que no exista otro usuario con ese email
+	existingUser, err := s.userRepo.GetByEmail(ctx, user.Email)
+	if err != nil && !errors.Is(err, domain.ErrNotFound) {
+		return err
+	}
+
+	if existingUser != nil && existingUser.ID != user.ID {
+		return errors.New("ya existe un usuario con ese email")
+	}
+
 	return s.userRepo.Update(ctx, user)
 }
 
@@ -59,4 +80,43 @@ func (s *UserService) UpdatePassword(ctx context.Context, user *domain.User) err
 	}
 
 	return s.userRepo.UpdatePassword(ctx, user)
+}
+
+func (s *UserService) UpdateUsername(ctx context.Context, new_username string, id uint) error {
+
+	if id == 0 {
+		return errors.New("id de usuario invalido")
+	}
+
+	if new_username == "" {
+		return errors.New("nombre requerido")
+	}
+
+	// verificar existencia del usuario
+	if _, err := s.userRepo.GetByID(ctx, id); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return errors.New("usuario no encontrado")
+		}
+	}
+
+	return s.userRepo.UpdateUsername(ctx, new_username, id)
+}
+
+func (s *UserService) UpdateAvatar(ctx context.Context, avatar string, id uint) error {
+
+	if id == 0 {
+		return errors.New("id de usuario invalido")
+	}
+
+	if avatar == "" {
+		return errors.New("avatar requerido")
+	}
+	// verificar existencia del usuario
+	if _, err := s.userRepo.GetByID(ctx, id); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return errors.New("usuario no encontrado")
+		}
+	}
+
+	return s.userRepo.UpdateAvatar(ctx, avatar, id)
 }

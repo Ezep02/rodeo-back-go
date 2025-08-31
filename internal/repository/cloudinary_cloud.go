@@ -119,3 +119,20 @@ func (r *CloudinaryRepository) Upload(ctx context.Context, file io.Reader, filen
 	log.Println("File uploaded successfully to Cloudinary")
 	return nil
 }
+
+func (r *CloudinaryRepository) UploadAvatar(ctx context.Context, file io.Reader, filename string) (string, error) {
+
+	resp, err := r.cloud.Upload.Upload(ctx, file, uploader.UploadParams{
+		PublicID:     filename,
+		Folder:       "rodeo_img_container/avatars", // Carpeta en Cloudinary
+		Overwrite:    api.Bool(true),                // Sobrescribir si ya existe
+		ResourceType: "image",
+	})
+	if err != nil {
+		return "", fmt.Errorf("error subiendo avatar a Cloudinary: %w", err)
+	}
+
+	// resp.SecureURL contiene la URL pública HTTPS
+	log.Printf("Avatar subido correctamente a %s\n", resp.SecureURL)
+	return resp.SecureURL, nil
+}
