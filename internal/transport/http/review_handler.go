@@ -5,7 +5,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/ezep02/rodeo/internal/domain"
+	"github.com/ezep02/rodeo/internal/domain/review"
+
 	"github.com/ezep02/rodeo/internal/service"
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/gin-gonic/gin"
@@ -37,7 +38,7 @@ func (h *ReviewHandler) Create(c *gin.Context) {
 	}
 
 	// 1. Crear producto
-	review := &domain.Review{
+	review := &review.Review{
 		AppointmentID: req.AppointmentID,
 		Rating:        req.Rating,
 		Comment:       req.Comment,
@@ -65,7 +66,7 @@ func (h *ReviewHandler) List(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Gracias por participar",
+		"message": "Reseñas recuperadas correctamente",
 		"review":  review,
 	})
 }

@@ -60,6 +60,7 @@ CREATE TABLE appointments (
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+
 CREATE TABLE reviews (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     appointment_id BIGINT UNSIGNED NOT NULL UNIQUE,

@@ -196,16 +196,16 @@ func (r *GormAppointmentRepository) Delete(ctx context.Context, id uint) error {
 func (r *GormAppointmentRepository) GetByUserID(ctx context.Context, id uint) ([]domain.Appointment, error) {
 
 	var (
-		appt []domain.Appointment
-		// userApptKey string
+		appt        []domain.Appointment
+		userApptKey string
 	)
 
 	// // 1. Recuperar productos del cache
-	// infoInCache, err := r.redis.Get(ctx, userApptKey).Result()
-	// if err == nil {
-	// 	json.Unmarshal([]byte(infoInCache), &appt)
-	// 	return appt, nil
-	// }
+	infoInCache, err := r.redis.Get(ctx, userApptKey).Result()
+	if err == nil {
+		json.Unmarshal([]byte(infoInCache), &appt)
+		return appt, nil
+	}
 
 	// TODO: cachear informacion
 	if err := r.db.WithContext(ctx).
@@ -227,11 +227,11 @@ func (r *GormAppointmentRepository) GetByUserID(ctx context.Context, id uint) ([
 	}
 
 	// 3. Cachear los datos recuperados
-	// data, err := json.Marshal(appt)
-	// if err != nil {
-	// 	log.Println("Error realizando cache de los productos")
-	// }
-	// r.redis.Set(ctx, userApptKey, data, 1*time.Minute)
+	data, err := json.Marshal(appt)
+	if err != nil {
+		log.Println("Error realizando cache de los productos")
+	}
+	r.redis.Set(ctx, userApptKey, data, 1*time.Minute)
 
 	return appt, nil
 }

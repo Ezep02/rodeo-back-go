@@ -5,18 +5,19 @@ import (
 	"errors"
 
 	"github.com/ezep02/rodeo/internal/domain"
+	"github.com/ezep02/rodeo/internal/domain/review"
 )
 
 type ReviewService struct {
-	revRepo  domain.ReviewRepository
+	revRepo  review.ReviewRepository
 	apptRepo domain.AppointmentRepository
 }
 
-func NewReviewService(revRepo domain.ReviewRepository, apptRepo domain.AppointmentRepository) *ReviewService {
+func NewReviewService(revRepo review.ReviewRepository, apptRepo domain.AppointmentRepository) *ReviewService {
 	return &ReviewService{revRepo, apptRepo}
 }
 
-func (s *ReviewService) Create(ctx context.Context, review *domain.Review) error {
+func (s *ReviewService) Create(ctx context.Context, review *review.Review) error {
 
 	// 1. Verificar la existencia del appointment
 	if _, err := s.apptRepo.GetByID(ctx, review.AppointmentID); err != nil {
@@ -31,15 +32,15 @@ func (s *ReviewService) Create(ctx context.Context, review *domain.Review) error
 	return s.revRepo.Create(ctx, review)
 }
 
-func (s *ReviewService) List(ctx context.Context) ([]domain.Appointment, error) {
+func (s *ReviewService) List(ctx context.Context) ([]review.ReviewDetail, error) {
 	return s.revRepo.List(ctx)
 }
 
-func (s *ReviewService) ListByProductID(ctx context.Context, productID uint) ([]domain.Review, error) {
+func (s *ReviewService) ListByProductID(ctx context.Context, productID uint) ([]review.Review, error) {
 	return s.revRepo.ListByProductID(ctx, productID)
 }
 
-func (s *ReviewService) ListByUserID(ctx context.Context, userID uint, offset int) ([]domain.Appointment, error) {
+func (s *ReviewService) ListByUserID(ctx context.Context, userID uint, offset int) ([]review.ReviewDetail, error) {
 	if offset < 0 {
 		offset = 0
 	}

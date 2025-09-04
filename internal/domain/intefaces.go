@@ -53,15 +53,6 @@ type SlotRepository interface {
 	ListByDate(ctx context.Context, date time.Time) ([]Slot, error)
 }
 
-type ReviewRepository interface {
-	Create(ctx context.Context, review *Review) error
-	Update(ctx context.Context, review *Review) error
-	Delete(ctx context.Context, id uint) error
-	List(ctx context.Context) ([]Appointment, error)
-	ListByProductID(ctx context.Context, productID uint) ([]Review, error)
-	ListByUserID(ctx context.Context, userID uint, offset int) ([]Appointment, error)
-}
-
 type AnalyticRepository interface {
 	PopularTimeSlot(ctx context.Context) ([]PopularTimeSlot, error)
 	BookingOcupationRate(ctx context.Context) (*BookingOcupationRate, error)
