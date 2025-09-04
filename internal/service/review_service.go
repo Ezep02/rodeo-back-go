@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ezep02/rodeo/internal/domain"
+	"github.com/ezep02/rodeo/internal/domain/appointment"
 	"github.com/ezep02/rodeo/internal/domain/review"
 )
 
 type ReviewService struct {
 	revRepo  review.ReviewRepository
-	apptRepo domain.AppointmentRepository
+	apptRepo appointment.AppointmentRepository
 }
 
-func NewReviewService(revRepo review.ReviewRepository, apptRepo domain.AppointmentRepository) *ReviewService {
+func NewReviewService(revRepo review.ReviewRepository, apptRepo appointment.AppointmentRepository) *ReviewService {
 	return &ReviewService{revRepo, apptRepo}
 }
 
@@ -46,4 +46,8 @@ func (s *ReviewService) ListByUserID(ctx context.Context, userID uint, offset in
 	}
 
 	return s.revRepo.ListByUserID(ctx, userID, offset)
+}
+
+func (s *ReviewService) ReviewRatingStats(ctx context.Context) (*review.ReviewRatingStats, error) {
+	return s.revRepo.ReviewRatingStats(ctx)
 }

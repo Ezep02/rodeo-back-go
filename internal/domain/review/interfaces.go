@@ -9,4 +9,5 @@ type ReviewRepository interface {
 	List(ctx context.Context) ([]ReviewDetail, error)
 	ListByProductID(ctx context.Context, productID uint) ([]Review, error)
 	ListByUserID(ctx context.Context, userID uint, offset int) ([]ReviewDetail, error)
+	ReviewRatingStats(ctx context.Context) (*ReviewRatingStats, error)
 }

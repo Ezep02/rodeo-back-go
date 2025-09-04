@@ -90,7 +90,7 @@ func NewRouter(
 			appts.POST("/with-coupon", apptHandler.CreateWithCoupon)
 
 			// Rutas especificas de los usuarios
-			appts.GET("/user/:id", apptHandler.GetByUserID)
+			appts.GET("/user/:id/page/:offset", apptHandler.GetByUserID)
 		}
 
 		mercado_pago := v1.Group("/mercado_pago")
@@ -133,6 +133,7 @@ func NewRouter(
 			reviews.GET("/", reviewHandler.List)
 			reviews.GET("/product/:id", reviewHandler.ListByProductID)
 			reviews.GET("/user/:id/page/:offset", reviewHandler.ListByUserID)
+			reviews.GET("/rating-stats", reviewHandler.ReviewRatingStats)
 		}
 
 		// Rutas de analiticas

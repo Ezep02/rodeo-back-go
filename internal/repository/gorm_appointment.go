@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ezep02/rodeo/internal/domain"
+	"github.com/ezep02/rodeo/internal/domain/appointment"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -17,11 +18,11 @@ type GormAppointmentRepository struct {
 	redis *redis.Client
 }
 
-func NewGormAppointmentRepo(db *gorm.DB, redis *redis.Client) domain.AppointmentRepository {
+func NewGormAppointmentRepo(db *gorm.DB, redis *redis.Client) appointment.AppointmentRepository {
 	return &GormAppointmentRepository{db, redis}
 }
 
-func (r *GormAppointmentRepository) Create(ctx context.Context, appointment *domain.Appointment) error {
+func (r *GormAppointmentRepository) Create(ctx context.Context, appt *appointment.Appointment) error {
 
 	var (
 		cacheKey = fmt.Sprintf("slot-start:%s-end:%s", time.Now(), time.Now().Add(24*time.Hour))
@@ -37,7 +38,7 @@ func (r *GormAppointmentRepository) Create(ctx context.Context, appointment *dom
 		// Crear appointment
 		tx.Transaction(func(appt_tx *gorm.DB) error {
 
-			if err := appt_tx.WithContext(ctx).Create(appointment).Error; err != nil {
+			if err := appt_tx.WithContext(ctx).Create(appt).Error; err != nil {
 				log.Println("[rolling back new order]")
 				appt_tx.Rollback()
 				return err
@@ -49,7 +50,7 @@ func (r *GormAppointmentRepository) Create(ctx context.Context, appointment *dom
 		// Actualizar el estado del slot
 		tx.Transaction(func(slot_tx *gorm.DB) error {
 
-			if err := slot_tx.WithContext(ctx).Model(&domain.Slot{}).Where("id = ?", appointment.SlotID).Update("is_booked", true).Error; err != nil {
+			if err := slot_tx.WithContext(ctx).Model(&domain.Slot{}).Where("id = ?", appt.SlotID).Update("is_booked", true).Error; err != nil {
 				log.Println("[rolling back updating slot]")
 				slot_tx.Rollback()
 				return err
@@ -62,8 +63,8 @@ func (r *GormAppointmentRepository) Create(ctx context.Context, appointment *dom
 	return nil
 }
 
-func (r *GormAppointmentRepository) GetByID(ctx context.Context, id uint) (*domain.Appointment, error) {
-	var appt domain.Appointment
+func (r *GormAppointmentRepository) GetByID(ctx context.Context, id uint) (*appointment.Appointment, error) {
+	var appt appointment.Appointment
 
 	if err := r.db.WithContext(ctx).Preload("Products").Preload("Slot").First(&appt, id).Error; err != nil {
 
@@ -79,9 +80,9 @@ func (r *GormAppointmentRepository) GetByID(ctx context.Context, id uint) (*doma
 	return &appt, nil
 }
 
-func (r *GormAppointmentRepository) ListByDateRange(ctx context.Context, start, end time.Time) ([]domain.Appointment, error) {
+func (r *GormAppointmentRepository) ListByDateRange(ctx context.Context, start, end time.Time) ([]appointment.Appointment, error) {
 	var (
-		appts    []domain.Appointment
+		appts    []appointment.Appointment
 		cacheKey = fmt.Sprintf("appointment-start:%s-end:%s", start, end)
 	)
 
@@ -119,16 +120,16 @@ func (r *GormAppointmentRepository) ListByDateRange(ctx context.Context, start, 
 	return appts, nil
 }
 
-func (r *GormAppointmentRepository) Update(ctx context.Context, appointment *domain.Appointment, slot_id uint) error {
+func (r *GormAppointmentRepository) Update(ctx context.Context, appt *appointment.Appointment, slot_id uint) error {
 
 	r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 
 		// Actualizar el registro actual
 		tx.Transaction(func(appt_tx *gorm.DB) error {
 
-			if err := appt_tx.WithContext(ctx).Model(&domain.Appointment{}).Where("id = ?", appointment.ID).Updates(map[string]any{
-				"SlotID": appointment.SlotID,
-				"Status": appointment.Status,
+			if err := appt_tx.WithContext(ctx).Model(&appointment.Appointment{}).Where("id = ?", appt.ID).Updates(map[string]any{
+				"SlotID": appt.SlotID,
+				"Status": appt.Status,
 			}).Error; err != nil {
 				return err
 			}
@@ -137,7 +138,7 @@ func (r *GormAppointmentRepository) Update(ctx context.Context, appointment *dom
 
 		// Ocupar el nuevo turno
 		tx.Transaction(func(slot_tx *gorm.DB) error {
-			if err := slot_tx.WithContext(ctx).Model(&domain.Slot{}).Where("id = ?", appointment.SlotID).Update("is_booked", true).Error; err != nil {
+			if err := slot_tx.WithContext(ctx).Model(&domain.Slot{}).Where("id = ?", appt.SlotID).Update("is_booked", true).Error; err != nil {
 				log.Println("[rolling back updating slot]")
 				slot_tx.Rollback()
 				return err
@@ -167,7 +168,7 @@ func (r *GormAppointmentRepository) Update(ctx context.Context, appointment *dom
 
 func (r *GormAppointmentRepository) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var appt domain.Appointment
+		var appt appointment.Appointment
 
 		// Cargar cita y slot
 		if err := tx.Preload("Slot").First(&appt, id).Error; err != nil {
@@ -193,14 +194,16 @@ func (r *GormAppointmentRepository) Delete(ctx context.Context, id uint) error {
 	})
 }
 
-func (r *GormAppointmentRepository) GetByUserID(ctx context.Context, id uint) ([]domain.Appointment, error) {
+func (r *GormAppointmentRepository) GetByUserID(ctx context.Context, id uint, offset int) ([]appointment.Appointment, error) {
 
 	var (
-		appt        []domain.Appointment
-		userApptKey string
+		appt        []appointment.Appointment
+		userApptKey string = fmt.Sprintf("user-appointments-id:%d-offset:%d", id, offset)
 	)
 
-	// // 1. Recuperar productos del cache
+	log.Println("[DEBUG] userApptKey:", userApptKey)
+
+	// 1. Recuperar productos del cache
 	infoInCache, err := r.redis.Get(ctx, userApptKey).Result()
 	if err == nil {
 		json.Unmarshal([]byte(infoInCache), &appt)
@@ -220,6 +223,7 @@ func (r *GormAppointmentRepository) GetByUserID(ctx context.Context, id uint) ([
 			return db.Select("id", "appointment_id", "comment", "rating", "created_at")
 		}).
 		Where("user_id = ?", id).
+		Offset(offset).
 		Limit(5).
 		Order("created_at DESC").
 		Find(&appt).Error; err != nil {

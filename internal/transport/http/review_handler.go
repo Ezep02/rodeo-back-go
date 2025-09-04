@@ -158,3 +158,19 @@ func (h *ReviewHandler) ListByUserID(c *gin.Context) {
 		"reviews": reviews,
 	})
 }
+
+func (h *ReviewHandler) ReviewRatingStats(c *gin.Context) {
+
+	stats, err := h.svc.ReviewRatingStats(c.Request.Context())
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "algo no fue bien recuperando las estadisticas de las reseñas",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Estadisticas de las reseñas recuperadas correctamente",
+		"stats":   stats,
+	})
+}

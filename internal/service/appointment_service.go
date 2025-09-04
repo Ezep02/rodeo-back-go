@@ -6,18 +6,19 @@ import (
 	"time"
 
 	"github.com/ezep02/rodeo/internal/domain"
+	"github.com/ezep02/rodeo/internal/domain/appointment"
 )
 
 type AppointmentService struct {
-	apptRepo domain.AppointmentRepository
+	apptRepo appointment.AppointmentRepository
 	prodRepo domain.ProductRepository
 }
 
-func NewAppointmentService(apptRepo domain.AppointmentRepository, prodRepo domain.ProductRepository) *AppointmentService {
+func NewAppointmentService(apptRepo appointment.AppointmentRepository, prodRepo domain.ProductRepository) *AppointmentService {
 	return &AppointmentService{apptRepo, prodRepo}
 }
 
-func (s *AppointmentService) Schedule(ctx context.Context, appt *domain.Appointment) error {
+func (s *AppointmentService) Schedule(ctx context.Context, appt *appointment.Appointment) error {
 
 	// 1. Validar que los productos existan
 	for i, prod := range appt.Products {
@@ -38,15 +39,15 @@ func (s *AppointmentService) Schedule(ctx context.Context, appt *domain.Appointm
 	return s.apptRepo.Create(ctx, appt)
 }
 
-func (s *AppointmentService) GetByID(ctx context.Context, id uint) (*domain.Appointment, error) {
+func (s *AppointmentService) GetByID(ctx context.Context, id uint) (*appointment.Appointment, error) {
 	return s.apptRepo.GetByID(ctx, id)
 }
 
-func (s *AppointmentService) ListByDateRange(ctx context.Context, start time.Time, end time.Time) ([]domain.Appointment, error) {
+func (s *AppointmentService) ListByDateRange(ctx context.Context, start time.Time, end time.Time) ([]appointment.Appointment, error) {
 	return s.apptRepo.ListByDateRange(ctx, start, end)
 }
 
-func (s *AppointmentService) Update(ctx context.Context, id, slot_id uint, updatedAppt *domain.Appointment) error {
+func (s *AppointmentService) Update(ctx context.Context, id, slot_id uint, appt *appointment.Appointment) error {
 
 	// 1. Verificar que la cita exista
 	existing, err := s.apptRepo.GetByID(ctx, id)
@@ -55,7 +56,7 @@ func (s *AppointmentService) Update(ctx context.Context, id, slot_id uint, updat
 	}
 
 	// 2. Manener el id original
-	updatedAppt.ID = existing.ID
+	appt.ID = existing.ID
 
 	// 4. Evitar citas duplicadas
 	// existingAppts, err := s.apptRepo.List(ctx)
@@ -70,7 +71,7 @@ func (s *AppointmentService) Update(ctx context.Context, id, slot_id uint, updat
 	// }
 
 	// 6. Actualizar la cita
-	return s.apptRepo.Update(ctx, updatedAppt, slot_id)
+	return s.apptRepo.Update(ctx, appt, slot_id)
 }
 
 func (s *AppointmentService) Cancel(ctx context.Context, id uint) error {
@@ -109,8 +110,8 @@ func (s *AppointmentService) GetTotalPrice(ctx context.Context, id uint) (float6
 	return totalPrice, nil
 }
 
-func (s *AppointmentService) GetByUserID(ctx context.Context, id uint) ([]domain.Appointment, error) {
-	return s.apptRepo.GetByUserID(ctx, id)
+func (s *AppointmentService) GetByUserID(ctx context.Context, id uint, offset int) ([]appointment.Appointment, error) {
+	return s.apptRepo.GetByUserID(ctx, id, offset)
 }
 
 // utilizad

@@ -28,3 +28,10 @@ type ReviewDetail struct {
 	Email    string `json:"email"`
 	Avatar   string `json:"avatar"`
 }
+
+// ReviewRatingStats representa las estadisticas de las valoraciones de las reviews
+type ReviewRatingStats struct {
+	TotalReviews  int         `json:"total_reviews"`
+	AverageRating float64     `json:"average_rating"`
+	RatingCount   map[int]int `json:"rating_count"` // Mapa de valoracion a su conteo
+}

@@ -2,8 +2,6 @@ package domain
 
 import (
 	"time"
-
-	"github.com/ezep02/rodeo/internal/domain/review"
 )
 
 type User struct {
@@ -29,21 +27,6 @@ type Slot struct {
 	IsBooked bool      `gorm:"default:false" json:"is_booked"`
 	BarberID uint      `json:"barber_id"`
 	Barber   User      `gorm:"foreignKey:BarberID;references:ID" json:"barber"`
-}
-
-type Appointment struct {
-	ID                uint           `gorm:"primaryKey" json:"id"`
-	ClientName        string         `gorm:"size:100;not null" json:"client_name"`
-	ClientSurname     string         `gorm:"size:100;not null" json:"client_surname"`
-	SlotID            uint           `json:"slot_id"`
-	UserID            uint           `gorm:"foreignKey:UserID;references:ID" json:"user_id"`
-	Slot              Slot           `gorm:"foreignKey:SlotID;references:ID" json:"slot"`
-	PaymentPercentage int            `gorm:"not null;default:0" json:"payment_percentage"`
-	Status            string         `gorm:"size:100;not null;default:'active'" json:"status"`
-	Products          []Product      `gorm:"many2many:appointment_products;" json:"products"`
-	Review            *review.Review `gorm:"foreignKey:AppointmentID;" json:"review"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
 type Product struct {

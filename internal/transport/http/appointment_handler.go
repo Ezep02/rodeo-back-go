@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ezep02/rodeo/internal/domain"
+	"github.com/ezep02/rodeo/internal/domain/appointment"
 	"github.com/ezep02/rodeo/internal/service"
 	"github.com/ezep02/rodeo/internal/transport/sse"
 	"github.com/ezep02/rodeo/pkg/jwt"
@@ -125,7 +126,7 @@ func (h *AppointmentHandler) Create(c *gin.Context) {
 	}
 
 	// 8. Crear la cita
-	newAppt := domain.Appointment{
+	newAppt := appointment.Appointment{
 		ClientName:        paymentInfo.AdditionalInfo.Payer.FirstName,
 		ClientSurname:     paymentInfo.AdditionalInfo.Payer.LastName,
 		SlotID:            metadata.SlotID,
@@ -237,7 +238,7 @@ func (h *AppointmentHandler) Update(c *gin.Context) {
 	}
 
 	// 3. Actualizar la cita
-	updatedAppt := &domain.Appointment{
+	updatedAppt := &appointment.Appointment{
 		ID:     uint(id),
 		SlotID: req.NewSlotId,
 	}
@@ -257,7 +258,7 @@ func (h *AppointmentHandler) Update(c *gin.Context) {
 	// 5. Crear evento
 	ssePayload := sse.SSEMessage{
 		Type: "appointment_updated",
-		Data: domain.Appointment{
+		Data: appointment.Appointment{
 			ID:   uint(id),
 			Slot: *updatedSlot,
 		},
@@ -432,7 +433,14 @@ func (h *AppointmentHandler) GetByUserID(c *gin.Context) {
 		})
 	}
 
-	appt, err := h.svc.GetByUserID(c.Request.Context(), uint(id))
+	offset := c.Param("offset")
+
+	parsedOffset, err := strconv.Atoi(offset)
+	if err != nil || parsedOffset < 1 {
+		parsedOffset = 0 // Valor por defecto si no se proporciona o es inválido
+	}
+
+	appt, err := h.svc.GetByUserID(c.Request.Context(), uint(id), parsedOffset)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "no fue posible recuperar las citas",
@@ -498,7 +506,7 @@ func (h *AppointmentHandler) Surcharge(c *gin.Context) {
 	}
 
 	// 3. Actualizar la cita
-	updatedAppt := &domain.Appointment{
+	updatedAppt := &appointment.Appointment{
 		ID:     metadata.ApptId,
 		SlotID: metadata.NewSlotId,
 		Status: "updated",
@@ -519,7 +527,7 @@ func (h *AppointmentHandler) Surcharge(c *gin.Context) {
 	// 5. Crear evento
 	ssePayload := sse.SSEMessage{
 		Type: "appointment_updated",
-		Data: domain.Appointment{
+		Data: appointment.Appointment{
 			ID:   uint(metadata.ApptId),
 			Slot: *updatedSlot,
 		},

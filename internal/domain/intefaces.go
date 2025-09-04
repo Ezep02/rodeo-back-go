@@ -24,15 +24,6 @@ type AuthRepository interface {
 	GetByEmail(ctx context.Context, email string) (*User, error)
 }
 
-type AppointmentRepository interface {
-	Create(ctx context.Context, appointment *Appointment) error
-	Update(ctx context.Context, appointment *Appointment, slot_id uint) error
-	Delete(ctx context.Context, id uint) error
-	ListByDateRange(ctx context.Context, start, end time.Time) ([]Appointment, error)
-	GetByID(ctx context.Context, id uint) (*Appointment, error)
-	GetByUserID(ctx context.Context, id uint) ([]Appointment, error)
-}
-
 // TODO REEMPLAZAR POR SERVICES
 type ProductRepository interface {
 	Create(ctx context.Context, product *Product) error

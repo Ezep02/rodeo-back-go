@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ezep02/rodeo/internal/domain"
+	"github.com/ezep02/rodeo/internal/domain/appointment"
 	"gorm.io/gorm"
 )
 
@@ -77,7 +78,7 @@ func (r *GormAnalyticRepository) MonthBookingCount(ctx context.Context) ([]domai
 func (r *GormAnalyticRepository) WeeklyBookingRate(ctx context.Context) ([]domain.WeeklyBookingRate, error) {
 	var weeklyRate []domain.WeeklyBookingRate
 
-	err := r.db.WithContext(ctx).Model(&domain.Appointment{}).
+	err := r.db.WithContext(ctx).Model(&appointment.Appointment{}).
 		Select(`DATE_FORMAT(created_at, '%Y-%u-%m') AS week, COUNT(*) AS appointment_this_week`).
 		Group("week").
 		Order("week").

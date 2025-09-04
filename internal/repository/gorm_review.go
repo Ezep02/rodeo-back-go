@@ -132,3 +132,45 @@ func (r *GormReviewRepository) ListByUserID(ctx context.Context, userID uint, of
 
 	return reviews, nil
 }
+
+func (r *GormReviewRepository) ReviewRatingStats(ctx context.Context) (*review.ReviewRatingStats, error) {
+	var (
+		stats       review.ReviewRatingStats
+		ratingCount map[int]int = make(map[int]int)
+	)
+
+	// 1. Consulta a la base de datos
+	type RatingCountResult struct {
+		Rating int
+		Count  int
+	}
+
+	var results []RatingCountResult
+	if err := r.db.WithContext(ctx).
+		Model(&review.Review{}).
+		Select("rating, COUNT(*) as count").
+		Group("rating").
+		Scan(&results).Error; err != nil {
+		return nil, err
+	}
+
+	totalReviews := 0
+	sumRatings := 0
+	for _, res := range results {
+		ratingCount[res.Rating] = res.Count
+		totalReviews += res.Count
+		sumRatings += res.Rating * res.Count
+	}
+
+	averageRating := 0.0
+	if totalReviews > 0 {
+		averageRating = float64(sumRatings) / float64(totalReviews)
+	}
+
+	stats = review.ReviewRatingStats{
+		TotalReviews:  totalReviews,
+		AverageRating: averageRating,
+		RatingCount:   ratingCount,
+	}
+	return &stats, nil
+}
