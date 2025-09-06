@@ -201,8 +201,6 @@ func (r *GormAppointmentRepository) GetByUserID(ctx context.Context, id uint, of
 		userApptKey string = fmt.Sprintf("user-appointments-id:%d-offset:%d", id, offset)
 	)
 
-	log.Println("[DEBUG] userApptKey:", userApptKey)
-
 	// 1. Recuperar productos del cache
 	infoInCache, err := r.redis.Get(ctx, userApptKey).Result()
 	if err == nil {

@@ -56,8 +56,18 @@ func (h *ReviewHandler) Create(c *gin.Context) {
 }
 
 func (h *ReviewHandler) List(c *gin.Context) {
+	var (
+		offset = c.Param("offset")
+	)
 
-	review, err := h.svc.List(c.Request.Context())
+	// 1. Recuperar y validar offset
+	parsedOffset, err := strconv.Atoi(offset)
+	if err != nil || parsedOffset < 1 {
+		parsedOffset = 0
+	}
+
+	// 2. Realizar consulta
+	review, err := h.svc.List(c.Request.Context(), parsedOffset)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "algo no fue bien recuperando la reseñas",

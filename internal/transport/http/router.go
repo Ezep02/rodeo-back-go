@@ -59,7 +59,7 @@ func NewRouter(
 			auth.GET("/verify", authHandler.VerifySession)
 			auth.GET("/google", authHandler.GoogleAuth)
 			auth.GET("/callback", authHandler.CallbackHandler)
-			auth.POST("/send-email/:id", authHandler.SendResetPasswordEmail)
+			auth.POST("/send-email", authHandler.SendResetPasswordEmail)
 			auth.POST("/reset-password", authHandler.ResetPassword)
 			auth.PUT("/update-user/:id", authHandler.UpdateUser)
 		}
@@ -130,7 +130,7 @@ func NewRouter(
 		{
 			reviewHandler := NewReviewHandler(revSvc)
 			reviews.POST("/", reviewHandler.Create)
-			reviews.GET("/", reviewHandler.List)
+			reviews.GET("/page/:offset", reviewHandler.List)
 			reviews.GET("/product/:id", reviewHandler.ListByProductID)
 			reviews.GET("/user/:id/page/:offset", reviewHandler.ListByUserID)
 			reviews.GET("/rating-stats", reviewHandler.ReviewRatingStats)

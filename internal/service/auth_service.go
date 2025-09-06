@@ -62,6 +62,6 @@ func (s *AuthService) GetByID(ctx context.Context, id uint) (*domain.User, error
 	return s.authRepo.GetByID(ctx, id)
 }
 
-func (s *AuthService) GetByEamil(ctx context.Context, email string) (*domain.User, error) {
+func (s *AuthService) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	return s.authRepo.GetByEmail(ctx, email)
 }

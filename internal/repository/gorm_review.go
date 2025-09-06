@@ -32,19 +32,19 @@ func (r *GormReviewRepository) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (r *GormReviewRepository) List(ctx context.Context) ([]review.ReviewDetail, error) {
+func (r *GormReviewRepository) List(ctx context.Context, offset int) ([]review.ReviewDetail, error) {
 	var (
-		reviews []review.ReviewDetail
-		// revCacheKey string = "review"
+		reviews     []review.ReviewDetail
+		revCacheKey string = fmt.Sprintf("review:all-offset:%d", offset)
 	)
 
 	// 1. Recuperar productos del cache
-	// servicesInCache, err := r.redis.Get(ctx, revCacheKey).Result()
+	servicesInCache, err := r.redis.Get(ctx, revCacheKey).Result()
 
-	// if err == nil {
-	// 	json.Unmarshal([]byte(servicesInCache), &reviews)
-	// 	return reviews, nil
-	// }
+	if err == nil {
+		json.Unmarshal([]byte(servicesInCache), &reviews)
+		return reviews, nil
+	}
 
 	if err := r.db.WithContext(ctx).
 		Table("reviews as r").
@@ -63,14 +63,16 @@ func (r *GormReviewRepository) List(ctx context.Context) ([]review.ReviewDetail,
 			u.avatar`).
 		Joins("JOIN appointments a ON r.appointment_id = a.id").
 		Joins("JOIN users u ON a.user_id = u.id").
-		Limit(6).
+		Order("r.rating DESC").
+		Offset(offset).
+		Limit(10).
 		Scan(&reviews).Error; err != nil {
 		return nil, err
 	}
 
 	// 3. Cachear resultados opcionalmente
-	// data, _ := json.Marshal(reviews)
-	// r.redis.Set(ctx, revCacheKey, data, time.Hour)
+	data, _ := json.Marshal(reviews)
+	r.redis.Set(ctx, revCacheKey, data, time.Hour)
 
 	return reviews, nil
 }

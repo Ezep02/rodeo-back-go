@@ -32,8 +32,8 @@ func (s *ReviewService) Create(ctx context.Context, review *review.Review) error
 	return s.revRepo.Create(ctx, review)
 }
 
-func (s *ReviewService) List(ctx context.Context) ([]review.ReviewDetail, error) {
-	return s.revRepo.List(ctx)
+func (s *ReviewService) List(ctx context.Context, offset int) ([]review.ReviewDetail, error) {
+	return s.revRepo.List(ctx, offset)
 }
 
 func (s *ReviewService) ListByProductID(ctx context.Context, productID uint) ([]review.Review, error) {

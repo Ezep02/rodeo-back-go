@@ -91,7 +91,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	// 5. Recuperar usuario
-	existing, err := h.svc.GetByEamil(c.Request.Context(), req.Email)
+	existing, err := h.svc.GetByEmail(c.Request.Context(), req.Email)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "se registro, pero no fue posible recuperar al usuario"})
 		return
@@ -292,35 +292,21 @@ type UserEmailRes struct {
 }
 
 func (h *AuthHandler) SendResetPasswordEmail(c *gin.Context) {
-	var authToken = os.Getenv("AUTH_TOKEN")
-	var sender = "epereyra443@gmail.com"
-	var password = "hlmg lrgf mtxf aqul " // contraseña de app
-	// var req UserEmailRes
+	var (
+		sender   = "epereyra443@gmail.com"
+		password = os.Getenv("EMAIL_API_PASSWORD")
+		req      UserEmailRes
+	)
 
-	// Validar cookie
-	cookie, err := c.Cookie(authToken)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "usuario no autorizado"})
-		return
-	}
-	if _, err := jwt.VerfiySessionToken(cookie); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalido o expirado"})
+	// 1. Obtener datos de la consulta
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
 
-	// Obtener ID usuario
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de usuario no proporcionado"})
-		return
-	}
-	userID, err := strconv.ParseUint(id, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de usuario invalido"})
-		return
-	}
+	log.Println("Request Body:", req)
 
-	user, err := h.svc.GetByID(c.Request.Context(), uint(userID))
+	user, err := h.svc.GetByEmail(c.Request.Context(), req.Email)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "usuario no encontrado"})
 		return
