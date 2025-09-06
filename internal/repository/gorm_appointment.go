@@ -215,7 +215,10 @@ func (r *GormAppointmentRepository) GetByUserID(ctx context.Context, id uint, of
 			return db.Select("id", "name", "price")
 		}).
 		Preload("Slot", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id", "date", "time")
+			return db.Select("id", "date", "time", "barber_id").
+				Preload("Barber", func(db *gorm.DB) *gorm.DB {
+					return db.Select("id", "name", "surname")
+				})
 		}).
 		Preload("Review", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "appointment_id", "comment", "rating", "created_at")

@@ -130,6 +130,7 @@ func NewRouter(
 		{
 			reviewHandler := NewReviewHandler(revSvc)
 			reviews.POST("/", reviewHandler.Create)
+			reviews.DELETE("/:id", reviewHandler.Delete)
 			reviews.GET("/page/:offset", reviewHandler.List)
 			reviews.GET("/product/:id", reviewHandler.ListByProductID)
 			reviews.GET("/user/:id/page/:offset", reviewHandler.ListByUserID)

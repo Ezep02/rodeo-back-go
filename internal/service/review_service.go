@@ -51,3 +51,11 @@ func (s *ReviewService) ListByUserID(ctx context.Context, userID uint, offset in
 func (s *ReviewService) ReviewRatingStats(ctx context.Context) (*review.ReviewRatingStats, error) {
 	return s.revRepo.ReviewRatingStats(ctx)
 }
+
+func (s *ReviewService) Delete(ctx context.Context, id, user_id uint) error {
+	// 1. Verificar la existencia del appointment
+	if _, err := s.revRepo.GetByID(ctx, id); err != nil {
+		return errors.New("no es posible eliminar una reseña que no existe")
+	}
+	return s.revRepo.Delete(ctx, id, user_id)
+}

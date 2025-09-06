@@ -184,3 +184,51 @@ func (h *ReviewHandler) ReviewRatingStats(c *gin.Context) {
 		"stats":   stats,
 	})
 }
+
+func (h *ReviewHandler) Delete(c *gin.Context) {
+
+	var (
+		auth_token = os.Getenv("AUTH_TOKEN")
+		idStr      = c.Param("id")
+	)
+
+	if idStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "id invalido",
+		})
+		return
+	}
+
+	// 1. Recuperar cookies
+	cookie, err := c.Cookie(auth_token)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "usuario no autorizado"})
+		return
+	}
+
+	// 2. Validar la cookie
+	existing_user, err := jwt.VerfiySessionToken(cookie)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalido o expirado"})
+		return
+	}
+
+	// Convertir id a entero
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID invalido"})
+		return
+	}
+
+	// Realizar consulta
+	if err := h.svc.Delete(c.Request.Context(), uint(id), existing_user.ID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "algo no fue bien eliminando la reseña",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Reseña eliminada correctamente",
+	})
+}

@@ -28,7 +28,20 @@ func (r *GormReviewRepository) Create(ctx context.Context, review *review.Review
 func (r *GormReviewRepository) Update(ctx context.Context, review *review.Review) error {
 	return nil
 }
-func (r *GormReviewRepository) Delete(ctx context.Context, id uint) error {
+func (r *GormReviewRepository) Delete(ctx context.Context, id, user_id uint) error {
+	var (
+		revCacheKey string = fmt.Sprintf("review:user:%d-offset:%d", user_id, 0)
+	)
+
+	// 1. Eliminar cache
+	if err := r.redis.Del(ctx, revCacheKey).Err(); err != nil {
+		log.Println("Error deleting user from cache:", err)
+	}
+
+	if err := r.db.WithContext(ctx).Delete(&review.Review{}, id).Error; err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -175,4 +188,12 @@ func (r *GormReviewRepository) ReviewRatingStats(ctx context.Context) (*review.R
 		RatingCount:   ratingCount,
 	}
 	return &stats, nil
+}
+
+func (r *GormReviewRepository) GetByID(ctx context.Context, id uint) (*review.Review, error) {
+	var rev review.Review
+	if err := r.db.WithContext(ctx).First(&rev, id).Error; err != nil {
+		return nil, err
+	}
+	return &rev, nil
 }
