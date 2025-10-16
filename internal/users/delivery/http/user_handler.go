@@ -163,7 +163,7 @@ func (h *UserHandler) UserInfo(c *gin.Context) {
 		Phone_number:   user.Phone_number,
 		CreatedAt:      user.CreatedAt,
 		UpdatedAt:      user.UpdatedAt,
-		LastNameChange: user.LastNameChange,
+		LastNameChange: &user.LastNameChange,
 		Username:       user.Username,
 		Avatar:         user.Avatar,
 		Is_admin:       user.Is_admin,

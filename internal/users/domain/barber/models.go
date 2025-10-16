@@ -11,15 +11,9 @@ type Barber struct {
 }
 
 type BarberWithUser struct {
-	ID         uint   `gorm:"column:id" json:"id"`
-	UserID     uint   `gorm:"column:user_id" json:"user_id"`
-	CalendarID string `gorm:"column:calendar_id" json:"calendar_id"`
-
-	User struct {
-		ID       uint   `gorm:"column:id" json:"id"`
-		Name     string `gorm:"column:name" json:"name"`
-		Surname  string `gorm:"column:surname" json:"surname"`
-		Avatar   string `gorm:"column:avatar" json:"avatar"`
-		Username string `gorm:"column:username" json:"username"`
-	} `gorm:"embedded;embeddedPrefix:user_" json:"user"`
+	ID       uint   `gorm:"column:id" json:"id"`
+	Name     string `gorm:"column:name" json:"name"`
+	Surname  string `gorm:"column:surname" json:"surname"`
+	Avatar   string `gorm:"column:avatar" json:"avatar"`
+	Username string `gorm:"column:username" json:"username"`
 }

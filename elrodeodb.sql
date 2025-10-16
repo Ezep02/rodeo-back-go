@@ -10,7 +10,7 @@ CREATE TABLE users (
   is_admin BOOL DEFAULT FALSE,
   is_barber bool default false,
   phone_number VARCHAR(30), 
-  last_name_change TIMESTAMP DEFAULT NULL,
+  last_name_change TIMESTAMP NULL DEFAULT NULL,
   username VARCHAR(45) NOT NULL UNIQUE,
   avatar TEXT DEFAULT NULL,
   created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
@@ -97,7 +97,7 @@ CREATE TABLE services (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (barber_id) REFERENCES barbers(user_id) ON DELETE CASCADE
+    FOREIGN KEY (barber_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE medias (
@@ -110,6 +110,16 @@ CREATE TABLE medias (
     FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
 );
 
+-- Categorías
+CREATE TABLE categories (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    color VARCHAR(7),
+    preview_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
 -- Relación muchos a muchos
 CREATE TABLE service_categories (
     service_id BIGINT UNSIGNED NOT NULL,
@@ -119,15 +129,7 @@ CREATE TABLE service_categories (
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
 );
 
--- Categorías
-CREATE TABLE categories (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE,
-    color VARCHAR(7),
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+
 
 -- Promociones
 CREATE TABLE promotions (

@@ -31,10 +31,9 @@ func (r *GormBarberRepository) List(ctx context.Context) ([]barber.BarberWithUse
 	var barbers []barber.BarberWithUser
 
 	if err := r.db.WithContext(ctx).
-		Table("barbers b").
-		Select(`b.id, b.user_id, b.calendar_id,
-                u.id as user_id, u.name as user_name, u.surname as user_surname, u.avatar as user_avatar, u.username as user_username`).
-		Joins("JOIN users u ON u.id = b.user_id").
+		Table("users").
+		Select("id, name, surname, avatar, username").
+		Where("is_barber = ?", true).
 		Find(&barbers).Error; err != nil {
 		return nil, err
 	}
