@@ -18,48 +18,8 @@ CREATE TABLE users (
 );
 
 
+
 -- v1
-CREATE TABLE products (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  description VARCHAR(500),
-  price DECIMAL(12, 2) NOT NULL,
-  category_id BIGINT UNSIGNED NOT NULL, 
-  preview_url TEXT,
-  rating_sum int default 0,
-  number_of_reviews int default 0,
-  promotion_discount int default 0,
-  has_promotion BOOLEAN default false,
-  promotion_end_date DATETIME DEFAULT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE slots (
-    id SERIAL PRIMARY KEY,
-    date DATETIME NOT NULL,
-    time VARCHAR(30) NOT NULL,
-    is_booked BOOLEAN DEFAULT FALSE,
-    barber_id BIGINT UNSIGNED NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_barber_id FOREIGN KEY (barber_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE appointments (
-    id SERIAL PRIMARY KEY,
-    client_name VARCHAR(100) NOT NULL,
-    client_surname VARCHAR(100) NOT NULL,
-    slot_id BIGINT UNSIGNED NOT NULL,
-    user_id BIGINT UNSIGNED not null,
-    status VARCHAR(100) not null,
-    payment_percentage INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_slot FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE,
-    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id)
-);
-
 
 CREATE TABLE reviews (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -84,38 +44,6 @@ CREATE TABLE coupons (
     CONSTRAINT fk_user_coupon FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE posts (
-    id SERIAL PRIMARY KEY,
-    user_id BIGINT UNSIGNED NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    preview_url VARCHAR(2048),
-    description TEXT,
-    is_published BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_posts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-
--- Categorias ( LABELS )
-CREATE TABLE categories (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    color VARCHAR(7), -- #RRGGBB
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
--- relacion many to many entre product y categories
-CREATE TABLE service_categories (
-    service_id BIGINT UNSIGNED NOT NULL,
-    category_id BIGINT UNSIGNED NOT NULL,
-    PRIMARY KEY (service_id, category_id),
-    FOREIGN KEY (service_id) REFERENCES products(id),
-    FOREIGN KEY (category_id) REFERENCES categories(id)
-);
-
-
 
 -- Relacion many to many entre products y appointment
 CREATE TABLE appointment_products (
@@ -123,6 +51,177 @@ CREATE TABLE appointment_products (
     product_id BIGINT UNSIGNED REFERENCES products(id) ON DELETE CASCADE,
     PRIMARY KEY (appointment_id, product_id)
 );
+
+
+-- NEW FEATURES
+CREATE TABLE slots (
+    id SERIAL PRIMARY KEY,
+    barber_id BIGINT UNSIGNED NOT NULL,
+    start DATETIME NOT NULL,
+    end DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_barber_id FOREIGN KEY (barber_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- GOOGLE CALENDAR START
+CREATE TABLE google_calendar_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    expiry TIMESTAMP NOT NULL,
+    token_type VARCHAR(50) NOT NULL DEFAULT 'Bearer',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- GOOGLE CALENDAR END
+
+CREATE TABLE barbers (
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    calendar_id VARCHAR(255),          -- ID del calendario de Google Calendar
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- SERVICES START
+CREATE TABLE services (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    barber_id BIGINT UNSIGNED NOT NULL,
+    preview_url TEXT,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (barber_id) REFERENCES barbers(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE medias (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    service_id BIGINT UNSIGNED NOT NULL,
+    url TEXT NOT NULL,
+    type ENUM('image', 'video') DEFAULT 'image',
+    position INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
+);
+
+-- Relación muchos a muchos
+CREATE TABLE service_categories (
+    service_id BIGINT UNSIGNED NOT NULL,
+    category_id BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (service_id, category_id),
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+);
+
+-- Categorías
+CREATE TABLE categories (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    color VARCHAR(7),
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Promociones
+CREATE TABLE promotions (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    service_id BIGINT UNSIGNED NOT NULL,
+    discount DECIMAL(5,2) NOT NULL, -- puede ser porcentaje
+    start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    end_date TIMESTAMP NULL,
+    type ENUM('percentage', 'fixed') DEFAULT 'percentage', 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
+);
+
+-- SERVICES END
+
+
+-- PAYMENT AND BOOKING START
+CREATE TABLE bookings (
+    id SERIAL PRIMARY KEY,
+    slot_id BIGINT UNSIGNED NOT NULL,
+    client_id BIGINT UNSIGNED NOT NULL,
+    
+    -- Estado de la reserva (no financiero)
+    status ENUM('pendiente_pago', 'confirmado', 'cancelado', 'rechazado', 'completado') NOT NULL DEFAULT 'pendiente_pago',
+    
+    total_amount DECIMAL(10,2) DEFAULT 0,
+    google_event_id VARCHAR(255),
+    
+    coupon_code VARCHAR(12) DEFAULT NULL,
+    discount_amount DECIMAL(10,2) DEFAULT 0,
+    
+    expires_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    CONSTRAINT fk_booking_slot FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE,
+    CONSTRAINT fk_booking_client FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE,
+    
+    INDEX idx_booking_client (client_id),
+    INDEX idx_booking_slot (slot_id),
+    INDEX idx_booking_status (status)
+);
+
+CREATE TABLE payments (
+    id SERIAL PRIMARY KEY,
+    booking_id BIGINT UNSIGNED NOT NULL,
+    
+    amount DECIMAL(10,2) NOT NULL,  -- monto del pago
+    type ENUM('total','parcial','seña','restante') NOT NULL DEFAULT 'total',
+    method ENUM('mercadopago','efectivo','tarjeta','transferencia') NOT NULL,
+    
+    status ENUM('pendiente','aprobado','rechazado','reembolsado') NOT NULL DEFAULT 'pendiente',
+
+    mercado_pago_id VARCHAR(255) DEFAULT NULL,   -- ID en Mercado Pago
+    payment_url TEXT DEFAULT NULL,               -- URL de preferencia / checkout
+    paid_at DATETIME DEFAULT NULL,               -- fecha de confirmación de pago
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    CONSTRAINT fk_payment_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+    
+    INDEX idx_payment_booking (booking_id),
+    INDEX idx_payment_status (status),
+    INDEX idx_mercado_pago_id (mercado_pago_id)
+);
+
+
+CREATE TABLE booking_services (
+    id SERIAL PRIMARY KEY,
+    booking_id BIGINT UNSIGNED NOT NULL,
+    service_id BIGINT UNSIGNED NOT NULL,
+    
+    price DECIMAL(10,2) NOT NULL,   -- precio al momento de la reserva
+    quantity INT DEFAULT 1,         -- unidades o cantidad de servicios
+    notes VARCHAR(255) DEFAULT NULL, -- opcional: observaciones específicas del servicio
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    CONSTRAINT fk_booking_service_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+    CONSTRAINT fk_booking_service_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+    
+    INDEX idx_booking_service_booking (booking_id),
+    INDEX idx_booking_service_service (service_id)
+);
+
+
+
+-- PAYMENT AND BOOKING END
+
+
+
 
 
 

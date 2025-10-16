@@ -31,7 +31,7 @@ func AuthorizeAdmin() gin.HandlerFunc {
 			return
 		}
 
-		if !session.Is_admin {
+		if !session.IsAdmin {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Acceso solo permitido para administradores"})
 			c.Abort()
 			return

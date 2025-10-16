@@ -6,29 +6,29 @@ import (
 	"os"
 	"time"
 
-	"github.com/ezep02/rodeo/internal/domain"
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 )
 
 type JWTClaim struct {
-	ID           uint   `json:"ID"`
+	ID           uint   `json:"id"`
 	Name         string `json:"name"`
 	Email        string `json:"email"`
 	IsAdmin      bool   `json:"is_admin"`
 	Surname      string `json:"surname"`
 	Phone_number string `json:"phone_number"`
-	Is_barber    bool   `json:"is_barber"`
+	IsBarber     bool   `json:"is_barber"`
 	jwt.StandardClaims
 }
 
 type VerifyTokenRes struct {
-	ID           uint   `json:"ID"`
+	ID           uint   `json:"id"`
 	Name         string `json:"name"`
 	Email        string `json:"email"`
-	Is_admin     bool   `json:"is_admin"`
+	IsAdmin      bool   `json:"is_admin"`
 	Surname      string `json:"surname"`
 	Phone_number string `json:"phone_number"`
-	Is_barber    bool   `json:"is_barber"`
+	IsBarber     bool   `json:"is_barber"`
 }
 
 type JWTResetPassowrdClaim struct {
@@ -38,7 +38,23 @@ type JWTResetPassowrdClaim struct {
 
 var TokenKey = []byte("mytokenapikey")
 
-func GenerateToken(user domain.User, expirationTime time.Time) (string, error) {
+type User struct {
+	ID             uint      `gorm:"primaryKey" json:"id"`
+	Name           string    `gorm:"type:varchar(45);not null" json:"name"`
+	Surname        string    `gorm:"type:varchar(70);default:null" json:"surname"`
+	Password       string    `gorm:"type:varchar(70);not null" json:"password"`
+	Email          string    `gorm:"type:varchar(255);not null;unique" json:"email"`
+	Phone_number   string    `gorm:"type:varchar(30)" json:"phone_number"`
+	Is_admin       bool      `gorm:"default:false" json:"is_admin"`
+	Is_barber      bool      `gorm:"default:false" json:"is_barber"`
+	LastNameChange time.Time `json:"last_name_change"`
+	Username       string    `gorm:"type:varchar(45);not null;unique" json:"username"`
+	Avatar         string    `json:"avatar"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+func GenerateToken(user User, expirationTime time.Time) (string, error) {
 
 	claim := JWTClaim{
 		ID:           user.ID,
@@ -47,7 +63,7 @@ func GenerateToken(user domain.User, expirationTime time.Time) (string, error) {
 		IsAdmin:      user.Is_admin,
 		Surname:      user.Surname,
 		Phone_number: user.Phone_number,
-		Is_barber:    user.Is_barber,
+		IsBarber:     user.Is_barber,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},
@@ -84,7 +100,7 @@ func VerfiySessionToken(tokenString string) (*VerifyTokenRes, error) {
 		}
 
 		// Realiza la conversión del ID desde float64 a uint
-		id, ok := claims["ID"].(float64)
+		id, ok := claims["id"].(float64)
 		if !ok {
 			return nil, errors.New("invalid token: ID claim missing or not a number")
 		}
@@ -93,10 +109,10 @@ func VerfiySessionToken(tokenString string) (*VerifyTokenRes, error) {
 			ID:           uint(id),
 			Name:         claims["name"].(string),
 			Email:        claims["email"].(string),
-			Is_admin:     claims["is_admin"].(bool),
+			IsAdmin:      claims["is_admin"].(bool),
 			Surname:      claims["surname"].(string),
 			Phone_number: claims["phone_number"].(string),
-			Is_barber:    claims["is_barber"].(bool),
+			IsBarber:     claims["is_barber"].(bool),
 		}
 
 		return user, nil
@@ -120,4 +136,21 @@ func NewAuthTokenCookie(token string) *http.Cookie {
 		Secure:   false, // Cambiar a true si se usa HTTPS
 		Path:     "/",
 	}
+}
+
+// Verificar nivel de autorizacion
+func VerifyUserSession(c *gin.Context, auth_token string) (*VerifyTokenRes, error) {
+	// 2. Validar la sesion del usuario
+	cookie, err := c.Cookie(auth_token)
+	if err != nil {
+		return nil, errors.New("usuario no autorizado")
+	}
+
+	existing, err := VerfiySessionToken(cookie)
+
+	if err != nil {
+		return nil, errors.New("token invalido o expirado")
+	}
+
+	return existing, nil
 }
