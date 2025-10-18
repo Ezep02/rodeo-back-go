@@ -6,20 +6,27 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ezep02/rodeo/internal/booking/domain/booking"
+	"github.com/ezep02/rodeo/internal/booking/domain/payments"
 	"github.com/ezep02/rodeo/internal/booking/usecases"
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/gin-gonic/gin"
 )
 
 type BookingHandler struct {
-	bookingSvc *usecases.BookingService
-	paymentSvc *usecases.PaymentService
+	bookingSvc  *usecases.BookingService
+	paymentSvc  *usecases.PaymentService
+	couponSvc   *usecases.CouponService
+	servicesSvc *usecases.ServicesService
 }
 
 func NewBookingHandler(
 	bookingSvc *usecases.BookingService,
-	paymentSvc *usecases.PaymentService) *BookingHandler {
-	return &BookingHandler{bookingSvc, paymentSvc}
+	paymentSvc *usecases.PaymentService,
+	couponSvc *usecases.CouponService,
+	servicesSvc *usecases.ServicesService,
+) *BookingHandler {
+	return &BookingHandler{bookingSvc, paymentSvc, couponSvc, servicesSvc}
 }
 
 func (b *BookingHandler) Upcoming(c *gin.Context) {
@@ -111,4 +118,75 @@ func (b *BookingHandler) StatsByBarberID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, barberStats)
+}
+
+type CreateBookingRequest struct {
+	SlotID            uint   `json:"slot_id"`
+	ServicesID        []uint `json:"services_id"`
+	PaymentPercentage int64  `json:"payment_percentage"` // 50 para seña, 100 para total
+	CouponCode        string `json:"coupon_code"`
+}
+
+func (b *BookingHandler) Create(c *gin.Context) {
+
+	var (
+		auth_token = os.Getenv("AUTH_TOKEN")
+		req        CreateBookingRequest
+	)
+
+	// 1. Verificar sesion del usuario
+	authenticated, err := jwt.VerifyUserSession(c, auth_token)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2. Parsear request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// 2. Crear booking
+	totalAmount, err := b.servicesSvc.GetTotalPriceByIDs(c.Request.Context(), req.ServicesID)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no fue posible recuperar los servicios"})
+		return
+	}
+
+	// 3. Crear booking
+	booking := &booking.Booking{
+		SlotID:      req.SlotID,
+		ClientID:    authenticated.ID,
+		Status:      "pendiente_pago",
+		TotalAmount: totalAmount,
+	}
+
+	if err := b.bookingSvc.CreateBooking(c, booking); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear reserva"})
+		return
+	}
+
+	// 3. Crear payment (seña o total)
+	paymentAmount := totalAmount
+	paymentType := "total"
+	if req.PaymentPercentage < 100 {
+		paymentAmount = paymentAmount * float64(req.PaymentPercentage) / 100
+		paymentType = "seña"
+	}
+
+	payment := &payments.Payment{
+		BookingID: booking.ID,
+		Amount:    paymentAmount,
+		Type:      paymentType,
+		Method:    "transferencia",
+		Status:    "pendiente",
+	}
+
+	if err := b.paymentSvc.CreatePayment(c, payment); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear pago"})
+		return
+	}
+
+	c.JSON(http.StatusOK, payment)
 }

@@ -28,7 +28,7 @@ type MepaHandler struct {
 }
 
 var (
-	notification_url string = "https://2b4c16dbc69a.ngrok-free.app" // URL de notificación
+	notification_url string = "https://d7bea638b304.ngrok-free.app" // URL de notificación
 )
 
 func NewMepaHandler(
@@ -89,7 +89,10 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 		ClientID:    authenticatedUser.ID,
 		Status:      "pendiente_pago",
 		TotalAmount: totalAmount,
-		ExpiresAt:   time.Now().Add(15 * time.Minute),
+		ExpiresAt: func() *time.Time {
+			t := time.Now().Add(1 * time.Minute)
+			return &t
+		}(),
 	}
 
 	if err := h.bookingSvc.CreateBooking(c, booking); err != nil {
@@ -216,15 +219,21 @@ func (h *MepaHandler) HandleNotification(c *gin.Context) {
 
 	// Actualizar en base
 	if paymentInfo.Status == "approved" {
-		if err := h.paymentSvc.MarkAsPaid(c, paymentID, paymentInfo.Order.ID); err != nil {
-			log.Println("Err", err.Error())
-			log.Println("payment fallo actualizando status a pagado")
-		}
 
-		if err := h.bookingSvc.MarkAsPaid(c, bookingID); err != nil {
-			log.Println("Err", err.Error())
-			log.Println("booking fallo actualizando status a confirmado")
-		}
+		go func(bookingID, paymentID uint) {
+			ctx := context.Background()
+			// 1. Actualizar payment
+			if err := h.paymentSvc.MarkAsPaid(ctx, paymentID, paymentInfo.Order.ID); err != nil {
+				log.Println("Err", err.Error())
+				log.Println("payment fallo actualizando status a pagado")
+			}
+
+			if err := h.bookingSvc.MarkAsPaid(ctx, bookingID); err != nil {
+				log.Println("Err", err.Error())
+				log.Println("booking fallo actualizando status a confirmado")
+			}
+
+		}(bookingID, paymentID)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})

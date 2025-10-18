@@ -16,9 +16,9 @@ type Booking struct {
 	Slot     Slot             `gorm:"foreignKey:SlotID;constraint:OnDelete:CASCADE" json:"slot"`
 	Services []BookingService `gorm:"foreignKey:BookingID;constraint:OnDelete:CASCADE" json:"services"`
 
-	ExpiresAt time.Time `json:"expires_at"`
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+	ExpiresAt *time.Time `gorm:"default:null" json:"expires_at"`
+	CreatedAt time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 type User struct {

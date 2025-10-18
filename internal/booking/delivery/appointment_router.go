@@ -39,13 +39,14 @@ func NewAppointmentRoutes(r *gin.RouterGroup, cnn *gorm.DB, redis *redis.Client)
 	serviceSvc := usecases.NewServicesService(svcRepo)
 
 	// Job para los slots que no fueron pagados aun
-	bookingRepo.StartBookingCleanupJob(15 * time.Minute)
+	bookingRepo.StartBookingCleanupJob(1 * time.Minute)
 
 	booking := r.Group("/appointment")
 	{
-		bookingHandler := http.NewBookingHandler(bookingSvc, paymentSvc)
+		bookingHandler := http.NewBookingHandler(bookingSvc, paymentSvc, couponSvc, serviceSvc)
 		booking.GET("/upcoming/:date/:barber", bookingHandler.Upcoming)
 		booking.GET("/stats/:id", bookingHandler.StatsByBarberID)
+		booking.POST("/", bookingHandler.Create)
 	}
 
 	// Rutas de cupones
