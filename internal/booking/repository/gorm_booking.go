@@ -81,7 +81,8 @@ func (r *GormBookingRepository) Upcoming(ctx context.Context, barberID uint, dat
 		Preload("Services").
 		Joins("JOIN slots s ON s.id = bookings.slot_id").
 		Where("s.barber_id = ?", barberID).
-		Where("s.start >= ? AND s.start < ?", startOfDay, endOfDay)
+		Where("s.start >= ? AND s.start < ?", startOfDay, endOfDay).
+		Order("s.start ASC")
 
 	// Filtrar por status si viene
 	if status != "" {
@@ -169,6 +170,24 @@ func (r *GormBookingRepository) StatsByBarberID(ctx context.Context, barberID ui
 	}
 
 	return stats, nil
+}
+
+func (r *GormBookingRepository) AllPendingPayment(ctx context.Context) ([]booking.Booking, error) {
+	var bookings []booking.Booking
+
+	if err := r.db.WithContext(ctx).
+		Preload("Client", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name", "email", "surname", "avatar")
+		}).
+		Preload("Slot", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "start", "end")
+		}).
+		Where("status = ? AND expires_at IS NULL", "pendiente_pago").
+		Find(&bookings).Error; err != nil {
+		return nil, err
+	}
+
+	return bookings, nil
 }
 
 // Proceso en segundo plano para eliminar los bookings que no fueron abonados

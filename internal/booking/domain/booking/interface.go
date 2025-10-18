@@ -15,4 +15,5 @@ type BookingRepository interface {
 	Upcoming(ctx context.Context, barberID uint, date time.Time, status string) ([]Booking, error)
 
 	StatsByBarberID(ctx context.Context, barberID uint) (*BookingStats, error)
+	AllPendingPayment(ctx context.Context) ([]Booking, error)
 }

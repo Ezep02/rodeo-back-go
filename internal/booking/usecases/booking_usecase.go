@@ -67,3 +67,7 @@ func (s *BookingService) StatsByBarberID(ctx context.Context, barberID uint) (*b
 
 	return s.bookingRepo.StatsByBarberID(ctx, barberID)
 }
+
+func (s *BookingService) AllPendingPayment(ctx context.Context) ([]booking.Booking, error) {
+	return s.bookingRepo.AllPendingPayment(ctx)
+}

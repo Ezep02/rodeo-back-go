@@ -120,6 +120,34 @@ func (b *BookingHandler) StatsByBarberID(c *gin.Context) {
 	c.JSON(http.StatusOK, barberStats)
 }
 
+func (b *BookingHandler) AllPendingPayment(c *gin.Context) {
+
+	var (
+		auth_token = os.Getenv("AUTH_TOKEN")
+	)
+
+	// 1. Verificar sesion del usuario
+	authenticated, err := jwt.VerifyUserSession(c, auth_token)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !authenticated.IsAdmin {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "usted no tiene permiso suficiente"})
+		return
+	}
+
+	// 2. Consulta
+	bookings, err := b.bookingSvc.AllPendingPayment(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no fue posible recuperar las reservas pendientes de pago"})
+		return
+	}
+
+	c.JSON(http.StatusOK, bookings)
+}
+
 type CreateBookingRequest struct {
 	SlotID            uint   `json:"slot_id"`
 	ServicesID        []uint `json:"services_id"`

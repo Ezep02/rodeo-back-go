@@ -90,7 +90,7 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 		Status:      "pendiente_pago",
 		TotalAmount: totalAmount,
 		ExpiresAt: func() *time.Time {
-			t := time.Now().Add(1 * time.Minute)
+			t := time.Now().Add(1 * time.Hour)
 			return &t
 		}(),
 	}
