@@ -48,6 +48,8 @@ func NewAppointmentRoutes(r *gin.RouterGroup, cnn *gorm.DB, redis *redis.Client)
 		booking.GET("/stats/:id", bookingHandler.StatsByBarberID)
 		booking.GET("/all/pending-payment", bookingHandler.AllPendingPayment)
 		booking.POST("/", bookingHandler.Create)
+		booking.PUT("/mark-as-paid/:id", bookingHandler.MarkAsPaid)
+		booking.PUT("/mark-as-rejected/:id", bookingHandler.MarkAsRejected)
 	}
 
 	// Rutas de cupones

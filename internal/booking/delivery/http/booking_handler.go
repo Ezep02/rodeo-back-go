@@ -218,3 +218,73 @@ func (b *BookingHandler) Create(c *gin.Context) {
 
 	c.JSON(http.StatusOK, payment)
 }
+
+func (b *BookingHandler) MarkAsPaid(c *gin.Context) {
+
+	var (
+		auth_token = os.Getenv("AUTH_TOKEN")
+		idStr      = c.Param("id")
+	)
+
+	// 1. Verificar sesion del usuario
+	authenticated, err := jwt.VerifyUserSession(c, auth_token)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !authenticated.IsAdmin {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "usted no tiene permiso suficiente"})
+		return
+	}
+
+	// 2. Parsear el id
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no fue posible parsear el id"})
+		return
+	}
+
+	// 3. Marcar como pagado
+	if err := b.bookingSvc.MarkAsPaid(c.Request.Context(), uint(id)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no fue posible marcar la reserva como pagada"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "reserva aceptada exitosamente"})
+}
+
+func (b *BookingHandler) MarkAsRejected(c *gin.Context) {
+
+	var (
+		auth_token = os.Getenv("AUTH_TOKEN")
+		idStr      = c.Param("id")
+	)
+
+	// 1. Verificar sesion del usuario
+	authenticated, err := jwt.VerifyUserSession(c, auth_token)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !authenticated.IsAdmin {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "usted no tiene permiso suficiente"})
+		return
+	}
+
+	// 2. Parsear el id
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no fue posible parsear el id"})
+		return
+	}
+
+	// 3. Marcar como rechazado
+	if err := b.bookingSvc.MarkAsRejected(c.Request.Context(), uint(id)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no fue posible marcar la reserva como rechazada"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "reserva rechazada exitosamente"})
+}

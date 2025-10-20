@@ -58,6 +58,10 @@ func (r *GormBookingRepository) MarkAsPaid(ctx context.Context, bookingID uint) 
 	return r.db.WithContext(ctx).Model(&booking.Booking{}).Where("id = ?", bookingID).Update("status", "confirmado").Error
 }
 
+func (r *GormBookingRepository) MarkAsRejected(ctx context.Context, bookingID uint) error {
+	return r.db.WithContext(ctx).Model(&booking.Booking{}).Where("id = ?", bookingID).Update("status", "rechazado").Error
+}
+
 // Devuelve las proximas citas dado un id de barbero
 func (r *GormBookingRepository) Upcoming(ctx context.Context, barberID uint, date time.Time, status string) ([]booking.Booking, error) {
 	var (

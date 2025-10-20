@@ -50,6 +50,15 @@ func (s *BookingService) MarkAsPaid(ctx context.Context, bookingID uint) error {
 	return s.bookingRepo.MarkAsPaid(ctx, bookingID)
 }
 
+func (s *BookingService) MarkAsRejected(ctx context.Context, bookingID uint) error {
+
+	if bookingID == 0 {
+		return errors.New("el id de la reserva no puede ser nulo")
+	}
+
+	return s.bookingRepo.MarkAsRejected(ctx, bookingID)
+}
+
 // PARA BARBEROS
 func (s *BookingService) Upcoming(ctx context.Context, barberID uint, date time.Time, status string) ([]booking.Booking, error) {
 

@@ -37,8 +37,10 @@ func (r *GormSlotRepository) Update(ctx context.Context, slot *domain.Slot, slot
 func (r *GormSlotRepository) ListByDateRange(ctx context.Context, barber_id uint, start, end time.Time) ([]domain.SlotWithStatus, error) {
 
 	var (
-		slotList []domain.SlotWithStatus
-		cacheKey = fmt.Sprintf("barber:%d-slot-start:%s-end:%s", barber_id, start, end)
+		slotList    []domain.SlotWithStatus
+		cacheKey    = fmt.Sprintf("barber:%d-slot-start:%s-end:%s", barber_id, start, end)
+		parsedStart = start.Truncate(24 * time.Hour)
+		parsedEnd   = end.Truncate(24 * time.Hour).Add(24 * time.Hour) // incluye todo el último día
 	)
 
 	// 1. Recuperar datos desde cache
@@ -68,7 +70,7 @@ func (r *GormSlotRepository) ListByDateRange(ctx context.Context, barber_id uint
 		LEFT JOIN bookings b
 		ON b.slot_id = slots.id
 	`).
-		Where("slots.barber_id = ? AND slots.start BETWEEN ? AND ?", barber_id, start, end).
+		Where("slots.barber_id = ? AND slots.start BETWEEN ? AND ?", barber_id, parsedStart, parsedEnd).
 		Scan(&slotList).Error; err != nil {
 		log.Println("List by range err", err)
 		return nil, err
