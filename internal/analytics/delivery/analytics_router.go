@@ -22,12 +22,8 @@ func NewAnalyticsRoutes(r *gin.RouterGroup, cnn *gorm.DB, redis *redis.Client) {
 	analytics := r.Group("/analytics")
 	{
 		analyticHandler := http.NewAnalyticHandler(analyticSvc)
-		analytics.GET("/booking-rate", analyticHandler.BookingOcupationRate)
-		analytics.GET("/booking-count", analyticHandler.MonthBookingCount)
-		analytics.GET("/booking-weekly-rate", analyticHandler.WeeklyBookingRate)
 		analytics.GET("/month-revenue", analyticHandler.MonthlyRevenue)
 		analytics.GET("/client-rate", analyticHandler.NewClientRate)
-		analytics.GET("/slot-popular-time", analyticHandler.PopularTimeSlot)
 	}
 
 	// Rutas de informacion de la barberia

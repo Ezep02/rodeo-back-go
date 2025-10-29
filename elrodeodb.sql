@@ -8,7 +8,7 @@ CREATE TABLE users (
   password VARCHAR(70) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
   is_admin BOOL DEFAULT FALSE,
-  is_barber bool default false,
+  is_barber bool default FALSE,
   phone_number VARCHAR(30), 
   last_name_change TIMESTAMP NULL DEFAULT NULL,
   username VARCHAR(45) NOT NULL UNIQUE,

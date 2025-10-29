@@ -16,118 +16,84 @@ func NewGormAnalyticRepo(db *gorm.DB) analytics.AnalyticRepository {
 	return &GormAnalyticRepository{db}
 }
 
-func (r *GormAnalyticRepository) PopularTimeSlot(ctx context.Context) ([]analytics.PopularTimeSlot, error) {
-	var popTime []analytics.PopularTimeSlot
+func (r *GormAnalyticRepository) NewClientRate(ctx context.Context) (*analytics.NewClientRate, error) {
+	var newClients = &analytics.NewClientRate{}
 
-	// err := r.db.WithContext(ctx).
-	// 	Model(&analytics.Slot{}).
-	// 	Select("time, COUNT(*) AS bookings").
-	// 	Where("is_booked = ?", true).
-	// 	Group("time").
-	// 	Order("bookings DESC").
-	// 	Limit(10).
-	// 	Scan(&popTime).Error
-
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return popTime, nil
-}
-
-func (r *GormAnalyticRepository) BookingOcupationRate(ctx context.Context) (*analytics.BookingOcupationRate, error) {
-
-	var bookingRates *analytics.BookingOcupationRate
-
-	// err := r.db.WithContext(ctx).
-	// 	Model(&domain.Slot{}).
-	// 	Select(`
-	// 		DATE_FORMAT(date, '%M %Y') AS month,
-	// 		ROUND(SUM(CASE WHEN is_booked = TRUE THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS occ_pct
-	// 	`).
-	// 	Group("month").
-	// 	Order("STR_TO_DATE(month, '%M %Y')").
-	// 	Scan(&bookingRates).Error
-
-	// if err != nil {
-	// 	return nil, err
-	// }
-	return bookingRates, nil
-}
-
-func (r *GormAnalyticRepository) MonthBookingCount(ctx context.Context) ([]analytics.MonthBookingCount, error) {
-	var monthBooking []analytics.MonthBookingCount
-
-	query := `
-		SELECT 
-			DATE_FORMAT(s.date, '%m-%Y') AS month, 
-			COUNT(*) AS total_appointments
-		FROM appointments a
-		JOIN slots s ON s.id = a.slot_id
-		GROUP BY month
-		ORDER BY STR_TO_DATE(month, '%m-%Y')
-	`
-
-	err := r.db.WithContext(ctx).Raw(query).Scan(&monthBooking).Error
-	if err != nil {
+	//  Contar total de usuarios
+	if err := r.db.WithContext(ctx).Table("users").Count(&newClients.TotalCount).Error; err != nil {
 		return nil, err
 	}
-	return monthBooking, nil
-}
 
-func (r *GormAnalyticRepository) WeeklyBookingRate(ctx context.Context) ([]analytics.WeeklyBookingRate, error) {
-	var weeklyRate []analytics.WeeklyBookingRate
+	// Agrupar usuarios por mes (MySQL)
+	type monthlyData struct {
+		Month      string
+		NewClients int
+	}
 
-	// err := r.db.WithContext(ctx).Model(&appointment.Appointment{}).
-	// 	Select(`DATE_FORMAT(created_at, '%Y-%u-%m') AS week, COUNT(*) AS appointment_this_week`).
-	// 	Group("week").
-	// 	Order("week").
-	// 	Scan(&weeklyRate).Error
+	var monthStats []monthlyData
 
-	// if err != nil {
-	// 	return nil, err
-	// }
+	if err := r.db.WithContext(ctx).
+		Table("users").
+		Select("DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS new_clients").
+		Group("month").
+		Order("month ASC").
+		Scan(&monthStats).Error; err != nil {
+		return nil, err
+	}
 
-	return weeklyRate, nil
-}
-
-func (r *GormAnalyticRepository) NewClientRate(ctx context.Context) ([]analytics.NewClientRate, error) {
-
-	var newClients []analytics.NewClientRate
-
-	// err := r.db.WithContext(ctx).Model(&analytics.User{}).
-	// 	Select(`DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS new_clients`).
-	// 	Where("is_barber = ?", false).
-	// 	Group("DATE_FORMAT(created_at, '%Y-%m')").
-	// 	Order("month").
-	// 	Scan(&newClients).Error
-
-	// if err != nil {
-	// 	return nil, err
-	// }
+	// Adaptar al struct final
+	for _, m := range monthStats {
+		newClients.Data = append(newClients.Data, struct {
+			Month      string `json:"month"`
+			NewClients int    `json:"new_clients"`
+		}{
+			Month:      m.Month,
+			NewClients: m.NewClients,
+		})
+	}
 
 	return newClients, nil
 }
 
-func (r *GormAnalyticRepository) MonthlyRevenue(ctx context.Context) ([]analytics.MonthlyRevenue, error) {
+func (r *GormAnalyticRepository) MonthlyRevenue(ctx context.Context) (*analytics.MonthlyRevenue, error) {
+	var monthlyRevenue = &analytics.MonthlyRevenue{}
 
-	var monthlyRevenue []analytics.MonthlyRevenue
-
-	err := r.db.WithContext(ctx).
-		Raw(`
-            SELECT 
-                DATE_FORMAT(a.created_at, '%Y-%m-01') AS month,
-                SUM(p.price) AS total_revenue
-            FROM appointments a
-            JOIN appointment_products ap ON ap.appointment_id = a.id
-            JOIN products p ON p.id = ap.product_id
-            GROUP BY month
-            ORDER BY month
-        `).
-		Scan(&monthlyRevenue).Error
-
-	if err != nil {
+	// Calcular total global de ingresos aprobados
+	if err := r.db.WithContext(ctx).
+		Table("payments").
+		Select("COALESCE(SUM(amount), 0)").
+		Where("status = ?", "aprobado").
+		Scan(&monthlyRevenue.TotalRevenue).Error; err != nil {
 		return nil, err
+	}
+
+	// Agrupar ingresos por mes
+	type monthlyData struct {
+		Month        string
+		TotalRevenue float64
+	}
+
+	var monthStats []monthlyData
+
+	if err := r.db.WithContext(ctx).
+		Table("payments").
+		Select("DATE_FORMAT(paid_at, '%Y-%m') AS month, COALESCE(SUM(amount), 0) AS total_revenue").
+		Where("status = ?", "aprobado").
+		Group("month").
+		Order("month ASC").
+		Scan(&monthStats).Error; err != nil {
+		return nil, err
+	}
+
+	// Adaptar al struct final
+	for _, m := range monthStats {
+		monthlyRevenue.Data = append(monthlyRevenue.Data, struct {
+			Month        string  `json:"month"`
+			TotalRevenue float64 `json:"total_revenue"`
+		}{
+			Month:        m.Month,
+			TotalRevenue: m.TotalRevenue,
+		})
 	}
 
 	return monthlyRevenue, nil
