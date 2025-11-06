@@ -36,16 +36,9 @@ func (h *UserHandler) Update(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "ID is required"})
 		return
 	}
-
 	// 2. Validar la sesion del usuario
-	cookie, err := c.Cookie(auth_token)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "usuario no autorizado"})
-		return
-	}
-
-	if _, err := jwt.VerfiySessionToken(cookie); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalido o expirado"})
+	if _, err := jwt.VerifyUserSession(c, auth_token); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -75,10 +68,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Usuario actualizado correctamente",
-		"user":    reqBody,
-	})
+	c.JSON(http.StatusOK, reqBody)
 }
 
 func (h *UserHandler) GetByID(c *gin.Context) {
@@ -244,10 +234,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 	}(secure_url)
 
 	// Respuesta exitosa
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Avatar subido correctamente",
-		"avatar":  secure_url,
-	})
+	c.JSON(http.StatusOK, secure_url)
 }
 
 type UpdateUsernameRequest struct {

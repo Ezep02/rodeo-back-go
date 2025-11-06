@@ -2,9 +2,11 @@ package http
 
 import (
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/ezep02/rodeo/internal/users/usecase"
+	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/gin-gonic/gin"
 )
 
@@ -45,6 +47,15 @@ func (h *BarberHandler) GetByID(c *gin.Context) {
 }
 
 func (h *BarberHandler) List(c *gin.Context) {
+
+	var (
+		auth_token = os.Getenv("AUTH_TOKEN")
+	)
+
+	if _, err := jwt.VerifyUserSession(c, auth_token); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no autorizado"})
+		return
+	}
 
 	// 1. Obtener el barber
 	barber, err := h.barberSvc.List(c.Request.Context())

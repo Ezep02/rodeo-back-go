@@ -28,7 +28,7 @@ func NewUserRouter(r *gin.RouterGroup, db *gorm.DB, redis *redis.Client, cloudCo
 	users := r.Group("/users")
 	{
 		userHandler := http.NewUserHandler(userSvc, cloudinarySvc)
-		users.PUT("/:id", userHandler.Update) // TODO: Actualizar datos del usuario
+		users.PUT("/:id", userHandler.Update)
 		users.GET("/:id", userHandler.GetByID)
 		users.GET("/info", userHandler.UserInfo)
 		users.PUT("/username/:id", userHandler.UpdateUsername)
