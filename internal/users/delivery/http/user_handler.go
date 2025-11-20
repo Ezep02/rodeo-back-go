@@ -249,15 +249,8 @@ func (h *UserHandler) UpdateUsername(c *gin.Context) {
 		reqBody    UpdateUsernameRequest
 	)
 
-	// 1. Validar la sesion del usuario
-	cookie, err := c.Cookie(auth_token)
-	if err != nil {
+	if _, err := jwt.VerifyUserSession(c, auth_token); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "usuario no autorizado"})
-		return
-	}
-
-	if _, err := jwt.VerfiySessionToken(cookie); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "token invalido o expirado"})
 		return
 	}
 
@@ -282,13 +275,10 @@ func (h *UserHandler) UpdateUsername(c *gin.Context) {
 
 	// 5. Actualizar el username del usuario
 	if err := h.userSvc.UpdateUsername(c.Request.Context(), reqBody.NewUsername, uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusConflict, gin.H{"error": "El nombre de usuario ya está en uso"})
 		return
 	}
 
 	// Respuesta exitosa
-	c.JSON(http.StatusOK, gin.H{
-		"message":  "Avatar subido correctamente",
-		"username": reqBody.NewUsername,
-	})
+	c.JSON(http.StatusOK, reqBody.NewUsername)
 }

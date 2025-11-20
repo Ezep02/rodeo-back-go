@@ -28,7 +28,7 @@ func (s *PaymentService) GetPaymentByID(ctx context.Context, paymentID uint) (*p
 	return s.paymentRepo.GetByID(ctx, paymentID)
 }
 
-func (s *PaymentService) GetPaymentsByBookingID(ctx context.Context, bookingID uint) ([]payments.Payment, error) {
+func (s *PaymentService) GetPaymentsByBookingID(ctx context.Context, bookingID uint) (*payments.Payment, error) {
 	return s.paymentRepo.GetByBookingID(ctx, bookingID)
 }
 

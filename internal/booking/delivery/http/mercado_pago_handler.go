@@ -105,7 +105,7 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 	paymentType := "total"
 	if req.PaymentPercentage < 100 {
 		paymentAmount = paymentAmount * float64(req.PaymentPercentage) / 100
-		paymentType = "seña"
+		paymentType = "parcial"
 	}
 
 	payment := &payments.Payment{

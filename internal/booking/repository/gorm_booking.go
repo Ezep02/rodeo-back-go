@@ -41,8 +41,9 @@ func (r *GormBookingRepository) Update(ctx context.Context, b *booking.Booking) 
 func (r *GormBookingRepository) GetByID(ctx context.Context, bookingID uint) (*booking.Booking, error) {
 	var b booking.Booking
 	if err := r.db.WithContext(ctx).
+		Preload("Client").
+		Preload("Slot").
 		Preload("Services").
-		Preload("Payments").
 		Where("id = ?", bookingID).
 		First(&b).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -188,6 +189,27 @@ func (r *GormBookingRepository) AllPendingPayment(ctx context.Context) ([]bookin
 		}).
 		Where("status = ? AND expires_at IS NULL", "pendiente_pago").
 		Find(&bookings).Error; err != nil {
+		return nil, err
+	}
+
+	return bookings, nil
+}
+
+func (r *GormBookingRepository) GetByUserID(ctx context.Context, userID uint, offset int64) ([]booking.Booking, error) {
+
+	var (
+		bookings []booking.Booking
+	)
+
+	query := r.db.WithContext(ctx).
+		Preload("Slot").
+		Preload("Services").
+		Joins("JOIN slots s ON s.id = bookings.slot_id").
+		Where("bookings.client_id = ?", userID).
+		Order("s.start ASC")
+
+	// Ejecutar consulta
+	if err := query.Find(&bookings).Error; err != nil {
 		return nil, err
 	}
 

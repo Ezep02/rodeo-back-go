@@ -179,11 +179,11 @@ CREATE TABLE payments (
     booking_id BIGINT UNSIGNED NOT NULL,
     
     amount DECIMAL(10,2) NOT NULL,  -- monto del pago
-    type ENUM('total','parcial','seña','restante') NOT NULL DEFAULT 'total',
+    type ENUM('total','parcial') NOT NULL DEFAULT 'total',
     method ENUM('mercadopago','efectivo','tarjeta','transferencia') NOT NULL,
     
     status ENUM('pendiente','aprobado','rechazado','reembolsado') NOT NULL DEFAULT 'pendiente',
-
+    
     mercado_pago_id VARCHAR(255) DEFAULT NULL,   -- ID en Mercado Pago
     payment_url TEXT DEFAULT NULL,               -- URL de preferencia / checkout
     paid_at DATETIME DEFAULT NULL,               -- fecha de confirmación de pago

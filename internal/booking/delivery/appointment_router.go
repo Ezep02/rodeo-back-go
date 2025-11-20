@@ -50,6 +50,10 @@ func NewAppointmentRoutes(r *gin.RouterGroup, cnn *gorm.DB, redis *redis.Client)
 		booking.POST("/", bookingHandler.Create)
 		booking.PUT("/mark-as-paid/:id", bookingHandler.MarkAsPaid)
 		booking.PUT("/mark-as-rejected/:id", bookingHandler.MarkAsRejected)
+
+		// usuario
+		booking.GET("/user/:id", bookingHandler.AllByUserId)
+		booking.POST("/user/reschedule", bookingHandler.Reschedule)
 	}
 
 	// Rutas de cupones

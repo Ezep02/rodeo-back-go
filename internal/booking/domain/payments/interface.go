@@ -13,7 +13,7 @@ type PaymentRepository interface {
 	GetByID(ctx context.Context, paymentID uint) (*Payment, error)
 
 	// Obtener todos los pagos de un booking
-	GetByBookingID(ctx context.Context, bookingID uint) ([]Payment, error)
+	GetByBookingID(ctx context.Context, bookingID uint) (*Payment, error)
 
 	// Actualizar el status del pago (pendiente, aprobado, rechazado, reembolsado)
 	UpdateStatus(ctx context.Context, paymentID uint, status string, paidAt *time.Time) error

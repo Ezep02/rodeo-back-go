@@ -41,8 +41,8 @@ func (r *GormPaymentRepository) GetByID(ctx context.Context, paymentID uint) (*p
 	return &p, nil
 }
 
-func (r *GormPaymentRepository) GetByBookingID(ctx context.Context, bookingID uint) ([]payments.Payment, error) {
-	var payments []payments.Payment
+func (r *GormPaymentRepository) GetByBookingID(ctx context.Context, bookingID uint) (*payments.Payment, error) {
+	var payments *payments.Payment
 	if err := r.db.WithContext(ctx).
 		Where("booking_id = ?", bookingID).
 		Find(&payments).Error; err != nil {

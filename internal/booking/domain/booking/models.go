@@ -67,3 +67,14 @@ type BookingStats struct {
 	CanceledBookings  int64   `json:"canceled_bookings"`
 	ExpectedRevenue   float64 `json:"expected_revenue"`
 }
+
+// Devuelve informacion sobre el estado de la reprogramacion
+type RescheduleResponse struct {
+	RequiresPayment bool    `json:"requires_payment"`
+	Amount          float64 `json:"amount,omitempty"`
+	Percentage      int     `json:"percentage,omitempty"`
+	InitPoint       string  `json:"init_point,omitempty"`
+	Free            bool    `json:"free"`
+	Reprogrammed    bool    `json:"reprogrammed"`
+	Message         string  `json:"message"`
+}
