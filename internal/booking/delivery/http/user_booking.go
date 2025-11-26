@@ -78,3 +78,67 @@ func (b *BookingHandler) Reschedule(c *gin.Context) {
 
 	c.JSON(http.StatusOK, res)
 }
+
+func (b *BookingHandler) PreviewCancelation(c *gin.Context) {
+
+	var (
+		idStr      = c.Param("id")
+		auth_token = os.Getenv("AUTH_TOKEN")
+	)
+
+	// 1. Validar la sesion del usuario
+	if _, err := jwt.VerifyUserSession(c, auth_token); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2. Validar el id del booking a cancelar
+	parsedId, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		fmt.Printf("[error parseando id del booking] %s\n", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no fue posible recuperar el id de la consulta"})
+		return
+	}
+
+	info, err := b.bookingSvc.CalculateCancelationConsequences(c.Request.Context(), uint(parsedId))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, info)
+}
+
+func (b *BookingHandler) Cancel(c *gin.Context) {
+
+	var (
+		idStr      = c.Param("id")
+		auth_token = os.Getenv("AUTH_TOKEN")
+	)
+
+	// 1. Validar la sesion del usuario
+	if _, err := jwt.VerifyUserSession(c, auth_token); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2. Validar el id del booking a cancelar
+	parsedId, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		fmt.Printf("[error parseando id del booking] %s\n", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no fue posible recuperar el id de la consulta"})
+		return
+	}
+
+	// 3. Realizar consulta
+	info, err := b.bookingSvc.CancelBooking(c.Request.Context(), uint(parsedId))
+	if err != nil {
+		fmt.Printf("[error cancelando el booking] %s\n", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no fue posible recuperar el id de la consulta"})
+		return
+	}
+
+	// 3. Realizar consulta
+	c.JSON(http.StatusOK, info)
+
+}

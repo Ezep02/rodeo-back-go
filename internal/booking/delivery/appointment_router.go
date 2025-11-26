@@ -26,13 +26,13 @@ func NewAppointmentRoutes(r *gin.RouterGroup, cnn *gorm.DB, redis *redis.Client)
 	couponRepo := repository.NewGormCouponRepo(cnn, redis)
 	couponSvc := usecases.NewCouponService(couponRepo)
 
-	// Respositorios y casos de uso de Bookings
-	bookingRepo := repository.NewGormBookingRepo(cnn, redis)
-	bookingSvc := usecases.NewBookingService(bookingRepo)
-
 	// Respositorios y casos de uso de Payment
 	paymentRepo := repository.NewGormPaymentRepo(cnn, redis)
 	paymentSvc := usecases.NewPaymentService(paymentRepo)
+
+	// Respositorios y casos de uso de Bookings
+	bookingRepo := repository.NewGormBookingRepo(cnn, redis)
+	bookingSvc := usecases.NewBookingService(bookingRepo, paymentRepo, couponRepo)
 
 	// Respositorios y casos de uso de Servicios
 	svcRepo := repository.NewGormServiceRepo(cnn, redis)
@@ -54,6 +54,8 @@ func NewAppointmentRoutes(r *gin.RouterGroup, cnn *gorm.DB, redis *redis.Client)
 		// usuario
 		booking.GET("/user/:id", bookingHandler.AllByUserId)
 		booking.POST("/user/reschedule", bookingHandler.Reschedule)
+		booking.PUT("/user/cancel/:id", bookingHandler.Cancel)
+		booking.GET("/user/cancel/verify/:id", bookingHandler.PreviewCancelation)
 	}
 
 	// Rutas de cupones

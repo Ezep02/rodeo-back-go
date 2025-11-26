@@ -8,7 +8,8 @@ import (
 type BookingRepository interface {
 	Create(ctx context.Context, b *Booking) error
 	UpdateStatus(ctx context.Context, bookingID uint, status string) error
-	Update(ctx context.Context, b *Booking) error
+	UpdateSlot(ctx context.Context, bookingID, slotID uint) error
+	Cancel(ctx context.Context, bookingID uint) error
 	GetByID(ctx context.Context, bookingID uint) (*Booking, error)
 	StartBookingCleanupJob(interval time.Duration)
 	MarkAsPaid(ctx context.Context, bookingID uint) error

@@ -34,8 +34,14 @@ func (r *GormBookingRepository) UpdateStatus(ctx context.Context, bookingID uint
 		Update("status", status).Error
 }
 
-func (r *GormBookingRepository) Update(ctx context.Context, b *booking.Booking) error {
-	return r.db.WithContext(ctx).Save(b).Error
+// Actualiza el booking con el nuevo id del slot luego de reprogramar
+func (r *GormBookingRepository) UpdateSlot(ctx context.Context, bookingID, slotID uint) error {
+	return r.db.WithContext(ctx).Model(&booking.Booking{}).Where("id = ?", bookingID).Update("slot_id", slotID).Error
+}
+
+// Cliente cancela la cita
+func (r *GormBookingRepository) Cancel(ctx context.Context, bookingID uint) error {
+	return r.db.WithContext(ctx).Model(&booking.Booking{}).Where("id = ?", bookingID).Update("status", "cancelado").Error
 }
 
 func (r *GormBookingRepository) GetByID(ctx context.Context, bookingID uint) (*booking.Booking, error) {
@@ -59,6 +65,7 @@ func (r *GormBookingRepository) MarkAsPaid(ctx context.Context, bookingID uint) 
 	return r.db.WithContext(ctx).Model(&booking.Booking{}).Where("id = ?", bookingID).Update("status", "confirmado").Error
 }
 
+// Marcar como rechazado un booking, accion realizada solo por un administrador
 func (r *GormBookingRepository) MarkAsRejected(ctx context.Context, bookingID uint) error {
 	return r.db.WithContext(ctx).Model(&booking.Booking{}).Where("id = ?", bookingID).Update("status", "rechazado").Error
 }
@@ -177,6 +184,7 @@ func (r *GormBookingRepository) StatsByBarberID(ctx context.Context, barberID ui
 	return stats, nil
 }
 
+// Devuelve el listado de pagos pendientes de aceptacion (Estos se muestran solo para un administrador)
 func (r *GormBookingRepository) AllPendingPayment(ctx context.Context) ([]booking.Booking, error) {
 	var bookings []booking.Booking
 
@@ -195,6 +203,7 @@ func (r *GormBookingRepository) AllPendingPayment(ctx context.Context) ([]bookin
 	return bookings, nil
 }
 
+// Listado de bookings, sirve de datos al historial del cliente
 func (r *GormBookingRepository) GetByUserID(ctx context.Context, userID uint, offset int64) ([]booking.Booking, error) {
 
 	var (

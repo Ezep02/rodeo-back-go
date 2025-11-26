@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ezep02/rodeo/internal/booking/domain/booking"
+	"github.com/ezep02/rodeo/internal/booking/domain/coupon"
 	"github.com/ezep02/rodeo/internal/booking/domain/payments"
+	"github.com/ezep02/rodeo/internal/booking/helpers"
 	"github.com/mercadopago/sdk-go/pkg/config"
 	"github.com/mercadopago/sdk-go/pkg/preference"
 )
@@ -17,10 +20,11 @@ import (
 type BookingService struct {
 	bookingRepo booking.BookingRepository
 	paymentRepo payments.PaymentRepository
+	couponRepo  coupon.CouponRepository
 }
 
-func NewBookingService(bookingRepo booking.BookingRepository) *BookingService {
-	return &BookingService{bookingRepo: bookingRepo}
+func NewBookingService(bookingRepo booking.BookingRepository, paymentRepo payments.PaymentRepository, couponRepo coupon.CouponRepository) *BookingService {
+	return &BookingService{bookingRepo, paymentRepo, couponRepo}
 }
 
 func (s *BookingService) CreateBooking(ctx context.Context, b *booking.Booking) error {
@@ -30,11 +34,126 @@ func (s *BookingService) CreateBooking(ctx context.Context, b *booking.Booking) 
 	return s.bookingRepo.Create(ctx, b)
 }
 
-func (s *BookingService) UpdateBooking(ctx context.Context, b *booking.Booking) error {
-	if b == nil {
-		return errors.New("booking es nil")
+func (s *BookingService) CalculateCancelationConsequences(ctx context.Context, bookingID uint) (*booking.CancelationResponse, error) {
+
+	if bookingID == 0 {
+		return nil, errors.New("el id de la consulta no puede ser nulo")
 	}
-	return s.bookingRepo.Update(ctx, b)
+
+	// 1. Recuperar el booking
+	existing, err := s.bookingRepo.GetByID(ctx, bookingID)
+	if err != nil {
+		return nil, errors.New("no fue posible recuperar la cita")
+	}
+
+	// 2. Validar si ya ocurrio
+	now := time.Now().UTC()
+	if existing.Slot.Start.UTC().Before(now) {
+		return nil, errors.New("la cita ya ocurrió")
+	}
+
+	// 3. Recupear el payment
+	payment, err := s.paymentRepo.GetByBookingID(ctx, bookingID)
+	if err != nil {
+		return nil, errors.New("no fue posible recuperar los datos del pago de la cita")
+	}
+
+	// 3. ¿Esta dentro de las 24hs? → helper
+	isWithin24h := IsWithin24Hours(existing.Slot.Start)
+
+	// --------------------------------------
+	// Reglas de negocio (resumidas)
+	// --------------------------------------
+	// DENTRO 24H:
+	//   pago total  → 50%
+	//   pago parcial → pierde seña
+	//
+	// FUERA 24H:
+	//   pago total → 75%
+	//   pago parcial → 25%
+	// --------------------------------------
+
+	return helpers.CalculateConsequences(isWithin24h, payment.Type), nil
+}
+
+func (s *BookingService) CancelBooking(ctx context.Context, bookingID uint) (*booking.CancelationResponse, error) {
+
+	if bookingID == 0 {
+		return nil, errors.New("error recuperando el id de la consulta")
+	}
+
+	// 1. Recuperar el booking
+	existing, err := s.bookingRepo.GetByID(ctx, bookingID)
+	if err != nil {
+		return nil, errors.New("no fue posible recuperar la cita")
+	}
+
+	// 2. Validar si ya ocurrio
+	now := time.Now().UTC()
+	if existing.Slot.Start.UTC().Before(now) {
+		return nil, errors.New("la cita ya ocurrió")
+	}
+
+	// 3. Recupear el payment
+	payment, err := s.paymentRepo.GetByBookingID(ctx, bookingID)
+	if err != nil {
+		return nil, errors.New("no fue posible recuperar los datos del pago de la cita")
+	}
+
+	// 3. ¿Esta dentro de las 24hs? → helper
+	isWithin24h := IsWithin24Hours(existing.Slot.Start)
+
+	consequences := helpers.CalculateConsequences(isWithin24h, payment.Type)
+
+	if consequences.RequiresCoupon {
+		go func() {
+			const maxRetries = 5
+			var couponCode string
+			var err error
+
+			for i := 0; i < maxRetries; i++ {
+				couponCode, err = helpers.GenerateCouponCode(12)
+				if err != nil {
+					log.Println("No fue posible generar el código de 12")
+					return
+				}
+
+				err = s.couponRepo.Create(context.Background(), &coupon.Coupon{
+					Code:               couponCode,
+					UserID:             existing.ClientID,
+					DiscountPercentage: float64(consequences.CouponPercent),
+					ExpireAt:           time.Now().Add(7 * 24 * time.Hour),
+					IsAvailable:        true,
+				})
+				if err == nil {
+					// Éxito, salimos del bucle
+					log.Printf("Cupón creado: %s", couponCode)
+					return
+				}
+
+				// Si el error es por duplicado, seguimos intentando
+				if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "UNIQUE") {
+					log.Printf("Código repetido, intentando de nuevo (%d/%d)", i+1, maxRetries)
+					continue
+				}
+
+				// Otro tipo de error
+				log.Printf("Error al crear cupón: %s", err)
+				return
+			}
+
+			log.Println("No se pudo generar un código único después de varios intentos")
+		}()
+	}
+
+	if err := s.bookingRepo.Cancel(ctx, bookingID); err != nil {
+		return nil, errors.New("error cancelando la cita")
+	}
+
+	return &booking.CancelationResponse{
+		Message:  "cita cancelada con exito",
+		Canceled: true,
+	}, nil
 }
 
 func (s *BookingService) UpdateBookingStatus(ctx context.Context, bookingID uint, status string) error {
@@ -48,6 +167,7 @@ func (s *BookingService) GetBookingByID(ctx context.Context, bookingID uint) (*b
 	return s.bookingRepo.GetByID(ctx, bookingID)
 }
 
+// PARA ADMINISTRADORES
 func (s *BookingService) MarkAsPaid(ctx context.Context, bookingID uint) error {
 
 	if bookingID == 0 {
@@ -114,13 +234,13 @@ func (s *BookingService) Reschedule(ctx context.Context, bookingID, slotID uint)
 		return nil, errors.New("no fue posible recuperar la cita")
 	}
 
-	// 2. Validar si ya ocurrió
+	// 2. Validar si ya ocurrio
 	now := time.Now().UTC()
 	if existing.Slot.Start.UTC().Before(now) {
 		return nil, errors.New("la cita ya ocurrió")
 	}
 
-	// 3. ¿Está dentro de las 24hs? → helper
+	// 3. ¿Esta dentro de las 24hs? → helper
 	isWithin := IsWithin24Hours(existing.Slot.Start)
 
 	// --- CASE A — Dentro de 24h → requiere pago ----
@@ -131,10 +251,10 @@ func (s *BookingService) Reschedule(ctx context.Context, bookingID, slotID uint)
 			return nil, errors.New("no fue posible recuperar el pago asociado")
 		}
 
-		surcharge := GetSurcharge(payment.Status, int64(payment.Amount))
+		surcharge := GetSurcharge(payment.Type, int64(payment.Amount))
 
 		percentage := 0
-		switch payment.Status {
+		switch payment.Type {
 		case "parcial":
 			percentage = 50
 		case "total":
@@ -157,11 +277,10 @@ func (s *BookingService) Reschedule(ctx context.Context, bookingID, slotID uint)
 		}, nil
 	}
 
-	// --- CASE B — Reprogramación gratuita ----
-	// err = s.bookingRepo.UpdateSlot(ctx, bookingID, slotID)
-	// if err != nil {
-	//     return nil, errors.New("no fue posible reprogramar la cita")
-	// }
+	// --- CASE B — Reprogramacion gratuita ----
+	if err = s.bookingRepo.UpdateSlot(ctx, bookingID, slotID); err != nil {
+		return nil, errors.New("no fue posible reprogramar la cita")
+	}
 
 	return &booking.RescheduleResponse{
 		RequiresPayment: false,
@@ -175,11 +294,15 @@ func CreateReschedulePref(booking booking.Booking, payment payments.Payment, slo
 
 	var (
 		MP_ACCESS_TOKEN  = os.Getenv("MP_ACCESS_TOKEN")
-		notification_url = ""
+		notification_url = "https://7af8c9f4199b.ngrok-free.app"
 	)
 
 	// 1. Analizar instancia
-	totalAmount := GetSurcharge(payment.Status, int64(payment.Amount))
+	totalAmount := GetSurcharge(payment.Type, int64(payment.Amount))
+
+	log.Println("[DEBUG] payment.Status =", payment.Status)
+	log.Println("[DEBUG] payment.Amount =", payment.Amount)
+	log.Println("[DEBUG] totalAmount =", totalAmount)
 
 	// 4. Configurar Mercado Pago
 	cfg, err := config.New(MP_ACCESS_TOKEN)
@@ -228,6 +351,7 @@ func IsWithin24Hours(slotStart time.Time) bool {
 }
 
 func GetSurcharge(paymentStatus string, totalPaid int64) int64 {
+
 	switch paymentStatus {
 	case "parcial":
 		return totalPaid * 50 / 100

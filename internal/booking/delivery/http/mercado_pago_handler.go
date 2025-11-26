@@ -28,7 +28,7 @@ type MepaHandler struct {
 }
 
 var (
-	notification_url string = "https://bc1dd7937fd2.ngrok-free.app" // URL de notificación
+	notification_url string = "https://7af8c9f4199b.ngrok-free.app" // URL de notificación
 )
 
 func NewMepaHandler(

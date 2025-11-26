@@ -78,3 +78,12 @@ type RescheduleResponse struct {
 	Reprogrammed    bool    `json:"reprogrammed"`
 	Message         string  `json:"message"`
 }
+
+// Devuelve informacion sobre el estado de la cancelacion
+type CancelationResponse struct {
+	RequiresCoupon bool   `json:"requires_coupon"`          // se generara un cupon como devolucion?
+	CouponPercent  int    `json:"coupon_percent,omitempty"` // 25, 50, 75, etc.
+	LosesDeposit   bool   `json:"loses_deposit,omitempty"`  // indica si pierde la seña
+	Canceled       bool   `json:"canceled"`                 // si la cancelacion fue efectuada
+	Message        string `json:"message"`                  // explicacion para el usuario
+}
