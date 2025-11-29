@@ -14,6 +14,7 @@ type BookingRepository interface {
 	StartBookingCleanupJob(interval time.Duration)
 	MarkAsPaid(ctx context.Context, bookingID uint) error
 	MarkAsRejected(ctx context.Context, bookingID uint) error
+	MarkAsRescheduled(ctx context.Context, bookingID uint) error
 	Upcoming(ctx context.Context, barberID uint, date time.Time, status string) ([]Booking, error)
 	GetByUserID(ctx context.Context, userID uint, offset int64) ([]Booking, error)
 	StatsByBarberID(ctx context.Context, barberID uint) (*BookingStats, error)

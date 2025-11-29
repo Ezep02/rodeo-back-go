@@ -9,9 +9,6 @@ type PaymentRepository interface {
 	// Crear un nuevo pago (puede ser seña o total)
 	Create(ctx context.Context, payment *Payment) error
 
-	// Obtener un pago por ID
-	GetByID(ctx context.Context, paymentID uint) (*Payment, error)
-
 	// Obtener todos los pagos de un booking
 	GetByBookingID(ctx context.Context, bookingID uint) (*Payment, error)
 

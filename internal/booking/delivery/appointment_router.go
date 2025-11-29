@@ -38,24 +38,35 @@ func NewAppointmentRoutes(r *gin.RouterGroup, cnn *gorm.DB, redis *redis.Client)
 	svcRepo := repository.NewGormServiceRepo(cnn, redis)
 	serviceSvc := usecases.NewServicesService(svcRepo)
 
-	// Job para los slots que no fueron pagados aun
-	bookingRepo.StartBookingCleanupJob(1 * time.Hour)
+	// Job para cancelar las reservas que no fueron pagados aun
+	bookingRepo.StartBookingCleanupJob(15 * time.Minute)
 
 	booking := r.Group("/appointment")
 	{
 		bookingHandler := http.NewBookingHandler(bookingSvc, paymentSvc, couponSvc, serviceSvc)
+
 		booking.GET("/upcoming/:date/:barber", bookingHandler.Upcoming)
 		booking.GET("/stats/:id", bookingHandler.StatsByBarberID)
 		booking.GET("/all/pending-payment", bookingHandler.AllPendingPayment)
-		booking.POST("/", bookingHandler.Create)
 		booking.PUT("/mark-as-paid/:id", bookingHandler.MarkAsPaid)
 		booking.PUT("/mark-as-rejected/:id", bookingHandler.MarkAsRejected)
 
-		// usuario
+		// Crear una reserva sin mercado pago (creada cuando se la opcion de pago con alias es seleccionada)
+		booking.POST("/", bookingHandler.Create)
+
+		// Listado de citas
 		booking.GET("/user/:id", bookingHandler.AllByUserId)
+
+		// Reprogramacion de turno
 		booking.POST("/user/reschedule", bookingHandler.Reschedule)
+
+		// Cancelacion de turno
 		booking.PUT("/user/cancel/:id", bookingHandler.Cancel)
 		booking.GET("/user/cancel/verify/:id", bookingHandler.PreviewCancelation)
+
+		// Obtener payment de una reserva
+		booking.GET("/payment/:id", bookingHandler.BookingPayment)
+
 	}
 
 	// Rutas de cupones
@@ -66,6 +77,7 @@ func NewAppointmentRoutes(r *gin.RouterGroup, cnn *gorm.DB, redis *redis.Client)
 		mepHandler := http.NewMepaHandler(bookingSvc, paymentSvc, couponSvc, serviceSvc)
 		mercado_pago.POST("/", mepHandler.CreatePreference)
 		mercado_pago.POST("/notification", mepHandler.HandleNotification)
+		mercado_pago.POST("/notification/reschedule", mepHandler.RescheduleWithSurcharge)
 	}
 
 	// Conexion SSE streaming de datos

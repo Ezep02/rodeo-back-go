@@ -24,11 +24,14 @@ func (s *PaymentService) CreatePayment(ctx context.Context, p *payments.Payment)
 	return s.paymentRepo.Create(ctx, p)
 }
 
-func (s *PaymentService) GetPaymentByID(ctx context.Context, paymentID uint) (*payments.Payment, error) {
-	return s.paymentRepo.GetByID(ctx, paymentID)
-}
+func (s *PaymentService) GetByBookingID(ctx context.Context, bookingID uint) (*payments.Payment, error) {
 
-func (s *PaymentService) GetPaymentsByBookingID(ctx context.Context, bookingID uint) (*payments.Payment, error) {
+	if bookingID == 0 {
+		return nil, errors.New("el id de la reserva es requerido")
+	}
+
+	// Corroborar que no haya expirado el tiempo disponible para realizar el pago
+
 	return s.paymentRepo.GetByBookingID(ctx, bookingID)
 }
 

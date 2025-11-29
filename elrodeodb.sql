@@ -19,8 +19,6 @@ CREATE TABLE users (
 
 
 
--- v1
-
 CREATE TABLE reviews (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     appointment_id BIGINT UNSIGNED NOT NULL UNIQUE,
@@ -154,7 +152,7 @@ CREATE TABLE bookings (
     client_id BIGINT UNSIGNED NOT NULL,
     
     -- Estado de la reserva (no financiero)
-    status ENUM('pendiente_pago', 'confirmado', 'cancelado', 'rechazado', 'completado') NOT NULL DEFAULT 'pendiente_pago',
+    status ENUM('pendiente_pago', 'confirmado', 'cancelado', 'rechazado', 'completado', 'reprogramado') NOT NULL DEFAULT 'pendiente_pago',
     
     total_amount DECIMAL(10,2) DEFAULT 0,
     google_event_id VARCHAR(255),

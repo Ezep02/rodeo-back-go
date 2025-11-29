@@ -6,7 +6,7 @@ type Booking struct {
 	ID             uint    `gorm:"primaryKey" json:"id"`
 	SlotID         uint    `gorm:"not null" json:"slot_id"`
 	ClientID       uint    `gorm:"not null" json:"client_id"`
-	Status         string  `gorm:"type:enum('pendiente_pago','confirmado','cancelado','rechazado','completado');default:'pendiente_pago';not null" json:"status"`
+	Status         string  `gorm:"type:enum('pendiente_pago','confirmado','cancelado','rechazado','completado', 'reprogramado');default:'pendiente_pago';not null" json:"status"`
 	TotalAmount    float64 `gorm:"type:decimal(10,2);default:0" json:"total_amount"`
 	CouponCode     *string `gorm:"size:12" json:"coupon_code"`
 	DiscountAmount float64 `gorm:"type:decimal(10,2);default:0" json:"discount_amount"`

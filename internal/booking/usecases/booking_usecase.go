@@ -290,12 +290,44 @@ func (s *BookingService) Reschedule(ctx context.Context, bookingID, slotID uint)
 	}, nil
 }
 
+func (s *BookingService) RescheduleWithSurcharge(ctx context.Context, bookingID, slotID uint) error {
+	if bookingID == 0 {
+		return errors.New("el id de la reserva es necesario")
+	}
+
+	if slotID == 0 {
+		return errors.New("el id del turno es necesario")
+	}
+
+	// 1. Recuperar booking
+	_, err := s.bookingRepo.GetByID(ctx, bookingID)
+	if err != nil {
+		return errors.New("no fue posible recuperar la cita")
+	}
+
+	// 2. Actualizar el bookings con el nuevo id
+	if err = s.bookingRepo.UpdateSlot(ctx, bookingID, slotID); err != nil {
+		return errors.New("no fue posible reprogramar la cita")
+	}
+
+	// 3. Marcar como reprogramado
+	if err := s.bookingRepo.MarkAsRescheduled(ctx, bookingID); err != nil {
+		return errors.New("no fue posible cambiar el estado a reprogramado")
+	}
+
+	return nil
+}
+
 func CreateReschedulePref(booking booking.Booking, payment payments.Payment, slotID uint) (string, error) {
 
 	var (
 		MP_ACCESS_TOKEN  = os.Getenv("MP_ACCESS_TOKEN")
-		notification_url = "https://7af8c9f4199b.ngrok-free.app"
+		notification_url = os.Getenv("NGROK_URL")
 	)
+
+	if notification_url == "" {
+		return "", errors.New("no fue posible recuperar las variables de entorno")
+	}
 
 	// 1. Analizar instancia
 	totalAmount := GetSurcharge(payment.Type, int64(payment.Amount))
@@ -324,7 +356,7 @@ func CreateReschedulePref(booking booking.Booking, payment payments.Payment, slo
 			Name:    booking.Client.Name,
 			Surname: booking.Client.Surname,
 		},
-		NotificationURL: fmt.Sprintf("%s/api/v1/mercado_pago/notification", notification_url),
+		NotificationURL: fmt.Sprintf("%s/api/v1/mercado_pago/notification/reschedule", notification_url),
 		Metadata: map[string]any{
 			"booking_id": booking.ID,
 			"payment_id": payment.ID,

@@ -28,7 +28,7 @@ type MepaHandler struct {
 }
 
 var (
-	notification_url string = "https://7af8c9f4199b.ngrok-free.app" // URL de notificación
+	notification_url string = os.Getenv("NGROK_URL")
 )
 
 func NewMepaHandler(
@@ -90,7 +90,7 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 		Status:      "pendiente_pago",
 		TotalAmount: totalAmount,
 		ExpiresAt: func() *time.Time {
-			t := time.Now().Add(1 * time.Hour)
+			t := time.Now().Add(5 * time.Minute)
 			return &t
 		}(),
 	}
@@ -152,6 +152,7 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 		BackURLs: &preference.BackURLsRequest{
 			Success: "http://localhost:5173",
 		},
+		Expires: false,
 	}
 
 	preferenceRes, err := client.Create(c.Request.Context(), mpRequest)
@@ -234,6 +235,67 @@ func (h *MepaHandler) HandleNotification(c *gin.Context) {
 			}
 
 		}(bookingID, paymentID)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func (h *MepaHandler) RescheduleWithSurcharge(c *gin.Context) {
+
+	var (
+		payload         map[string]any
+		MP_ACCESS_TOKEN = os.Getenv("MP_ACCESS_TOKEN")
+	)
+
+	// 2. Decodificar payload enviado por mp
+	if err := json.NewDecoder(c.Request.Body).Decode(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON inválido"})
+		return
+	}
+
+	// 3. Recuperar del payload el campo id almacenado dentro de data
+	data, ok := payload["data"].(map[string]any)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Campo 'data' inválido"})
+		return
+	}
+
+	paymentStr := fmt.Sprintf("%v", data["id"])
+	mpPaymentID, err := strconv.ParseInt(paymentStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de pago inválido"})
+		return
+	}
+
+	// 4. Inicializar el cliente de Mercado Pago
+	cfg, err := config.New(MP_ACCESS_TOKEN)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo configurar el cliente"})
+		return
+	}
+
+	// 5. Consultar pago utilizanodo el ID
+	paymentClient := payment.NewClient(cfg)
+
+	paymentInfo, err := paymentClient.Get(context.Background(), int(mpPaymentID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Pago no encontrado"})
+		return
+	}
+
+	// Leer metadata
+	bookingID := uint(paymentInfo.Metadata["booking_id"].(float64))
+	slotID := uint(paymentInfo.Metadata["slot_id"].(float64))
+
+	// Actualizar en base
+	if paymentInfo.Status == "approved" {
+
+		go func(bookingID, slotID uint) {
+			ctx := context.Background()
+			// 1. Realizar reprogramacion
+			h.bookingSvc.RescheduleWithSurcharge(ctx, bookingID, slotID)
+
+		}(bookingID, slotID)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})

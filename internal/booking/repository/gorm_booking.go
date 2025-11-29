@@ -70,6 +70,10 @@ func (r *GormBookingRepository) MarkAsRejected(ctx context.Context, bookingID ui
 	return r.db.WithContext(ctx).Model(&booking.Booking{}).Where("id = ?", bookingID).Update("status", "rechazado").Error
 }
 
+func (r *GormBookingRepository) MarkAsRescheduled(ctx context.Context, bookingID uint) error {
+	return r.db.WithContext(ctx).Model(&booking.Booking{}).Where("id = ?", bookingID).Update("status", "reprogramado").Error
+}
+
 // Devuelve las proximas citas dado un id de barbero
 func (r *GormBookingRepository) Upcoming(ctx context.Context, barberID uint, date time.Time, status string) ([]booking.Booking, error) {
 	var (
@@ -211,11 +215,12 @@ func (r *GormBookingRepository) GetByUserID(ctx context.Context, userID uint, of
 	)
 
 	query := r.db.WithContext(ctx).
+		Preload("Client").
 		Preload("Slot").
 		Preload("Services").
 		Joins("JOIN slots s ON s.id = bookings.slot_id").
 		Where("bookings.client_id = ?", userID).
-		Order("s.start ASC")
+		Order("s.start DESC")
 
 	// Ejecutar consulta
 	if err := query.Find(&bookings).Error; err != nil {

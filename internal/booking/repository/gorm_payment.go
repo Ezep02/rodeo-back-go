@@ -27,20 +27,6 @@ func (r *GormPaymentRepository) Create(ctx context.Context, p *payments.Payment)
 	return r.db.WithContext(ctx).Create(p).Error
 }
 
-func (r *GormPaymentRepository) GetByID(ctx context.Context, paymentID uint) (*payments.Payment, error) {
-	var p payments.Payment
-	if err := r.db.WithContext(ctx).
-		Preload("Booking"). // opcional, si querés traer datos del booking
-		Where("id = ?", paymentID).
-		First(&p).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &p, nil
-}
-
 func (r *GormPaymentRepository) GetByBookingID(ctx context.Context, bookingID uint) (*payments.Payment, error) {
 	var payments *payments.Payment
 	if err := r.db.WithContext(ctx).

@@ -36,7 +36,7 @@ func (b *BookingHandler) Upcoming(c *gin.Context) {
 		barberIDStr = c.Param("barber")
 
 		auth_token = os.Getenv("AUTH_TOKEN")
-		status     = c.Query("status") // "" si no viene
+		status     = c.Query("status")
 	)
 
 	// 1. Verificar la sesion del usuario
@@ -287,4 +287,33 @@ func (b *BookingHandler) MarkAsRejected(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "reserva rechazada exitosamente"})
+}
+
+func (b *BookingHandler) BookingPayment(c *gin.Context) {
+
+	var (
+		auth_token = os.Getenv("AUTH_TOKEN")
+		idStr      = c.Param("id")
+	)
+
+	// 1. Verificar sesion del usuario
+	if _, err := jwt.VerifyUserSession(c, auth_token); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 2. Parsear el id
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no fue posible parsear el id"})
+		return
+	}
+
+	paymentInfo, err := b.paymentSvc.GetByBookingID(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no fue posible parsear el id"})
+		return
+	}
+
+	c.JSON(http.StatusOK, paymentInfo)
 }
