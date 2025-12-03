@@ -12,9 +12,9 @@ type Booking struct {
 	DiscountAmount float64 `gorm:"type:decimal(10,2);default:0" json:"discount_amount"`
 	GoogleEventID  *string `gorm:"size:255" json:"google_event_id"`
 
-	Client   User             `gorm:"foreignKey:ClientID;constraint:OnDelete:CASCADE" json:"client"`
-	Slot     Slot             `gorm:"foreignKey:SlotID;constraint:OnDelete:CASCADE" json:"slot"`
-	Services []BookingService `gorm:"foreignKey:BookingID;constraint:OnDelete:CASCADE" json:"services"`
+	Client          User             `gorm:"foreignKey:ClientID;constraint:OnDelete:CASCADE" json:"client"`
+	Slot            Slot             `gorm:"foreignKey:SlotID;constraint:OnDelete:CASCADE" json:"slot"`
+	BookingServices []BookingService `gorm:"foreignKey:BookingID;constraint:OnDelete:CASCADE" json:"services"`
 
 	ExpiresAt *time.Time `gorm:"default:null" json:"expires_at"`
 	CreatedAt time.Time  `gorm:"autoCreateTime" json:"created_at"`
@@ -39,12 +39,9 @@ type Slot struct {
 }
 
 type BookingService struct {
-	ID        uint    `gorm:"primaryKey" json:"id"`
-	BookingID uint    `gorm:"not null" json:"booking_id"`
-	ServiceID uint    `gorm:"not null" json:"service_id"`
-	Price     float64 `gorm:"type:decimal(10,2);not null" json:"price"`
-	Quantity  int     `gorm:"default:1" json:"quantity"`
-	Notes     *string `gorm:"size:255" json:"notes"`
+	ID        uint `gorm:"primaryKey" json:"id"`
+	BookingID uint `gorm:"not null" json:"booking_id"`
+	ServiceID uint `gorm:"not null" json:"service_id"`
 
 	Service Service `gorm:"foreignKey:ServiceID;constraint:OnDelete:CASCADE" json:"service"`
 	Booking Booking `gorm:"foreignKey:BookingID;constraint:OnDelete:CASCADE" json:"booking"`

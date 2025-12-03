@@ -21,9 +21,6 @@ func (r *GormServiceRepository) GetByID(ctx context.Context, id uint) (*services
 	var appt services.Service
 
 	if err := r.db.WithContext(ctx).
-		Preload("Medias").
-		Preload("Categories").
-		Preload("Promotions").
 		First(&appt, id).Error; err != nil {
 		return nil, err
 	}
@@ -31,7 +28,7 @@ func (r *GormServiceRepository) GetByID(ctx context.Context, id uint) (*services
 	return &appt, nil
 }
 
-// GetTotalPriceByIDs devuelve la suma de los precios de los servicios
+// Devuelve la suma de los precios de los servicios
 func (r *GormServiceRepository) GetTotalPriceByIDs(ctx context.Context, serviceIDs []uint) (float64, error) {
 	var total float64
 	err := r.db.WithContext(ctx).
@@ -43,4 +40,11 @@ func (r *GormServiceRepository) GetTotalPriceByIDs(ctx context.Context, serviceI
 		return 0, err
 	}
 	return total, nil
+}
+
+func (r *GormServiceRepository) SetBookingServices(ctx context.Context, services []services.BookingServices) error {
+
+	batchSize := 100
+
+	return r.db.WithContext(ctx).CreateInBatches(services, batchSize).Error
 }

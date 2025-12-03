@@ -111,7 +111,7 @@ func (s *BookingService) CancelBooking(ctx context.Context, bookingID uint) (*bo
 			var couponCode string
 			var err error
 
-			for i := 0; i < maxRetries; i++ {
+			for i := range maxRetries {
 				couponCode, err = helpers.GenerateCouponCode(12)
 				if err != nil {
 					log.Println("No fue posible generar el código de 12")

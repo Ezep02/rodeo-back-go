@@ -217,7 +217,8 @@ func (r *GormBookingRepository) GetByUserID(ctx context.Context, userID uint, of
 	query := r.db.WithContext(ctx).
 		Preload("Client").
 		Preload("Slot").
-		Preload("Services").
+		Preload("BookingServices").
+		Preload("BookingServices.Service").
 		Joins("JOIN slots s ON s.id = bookings.slot_id").
 		Where("bookings.client_id = ?", userID).
 		Order("s.start DESC")

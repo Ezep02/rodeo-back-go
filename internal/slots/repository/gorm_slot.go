@@ -2,8 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 	"time"
 
@@ -37,20 +35,20 @@ func (r *GormSlotRepository) Update(ctx context.Context, slot *domain.Slot, slot
 func (r *GormSlotRepository) ListByDateRange(ctx context.Context, barber_id uint, start, end time.Time) ([]domain.SlotWithStatus, error) {
 
 	var (
-		slotList    []domain.SlotWithStatus
-		cacheKey    = fmt.Sprintf("barber:%d-slot-start:%s-end:%s", barber_id, start, end)
+		slotList []domain.SlotWithStatus
+		//cacheKey    = fmt.Sprintf("barber:%d-slot-start:%s-end:%s", barber_id, start, end)
 		parsedStart = start.Truncate(24 * time.Hour)
 		parsedEnd   = end.Truncate(24 * time.Hour).Add(24 * time.Hour) // incluye todo el último día
 	)
 
 	// 1. Recuperar datos desde cache
-	infoInCache, err := r.redis.Get(ctx, cacheKey).Result()
-	if err == nil {
-		if err := json.Unmarshal([]byte(infoInCache), &slotList); err != nil {
-			log.Println("error decodificando slots desde cache")
-		}
-		return slotList, nil
-	}
+	// infoInCache, err := r.redis.Get(ctx, cacheKey).Result()
+	// if err == nil {
+	// 	if err := json.Unmarshal([]byte(infoInCache), &slotList); err != nil {
+	// 		log.Println("error decodificando slots desde cache")
+	// 	}
+	// 	return slotList, nil
+	// }
 
 	// 2. Recuperar desde la base de datos
 	if err := r.db.WithContext(ctx).
@@ -62,7 +60,7 @@ func (r *GormSlotRepository) ListByDateRange(ctx context.Context, barber_id uint
 		slots.end,
 		CASE 
 			WHEN b.id IS NULL THEN FALSE 
-			WHEN b.status IN ('pendiente_pago', 'confirmado', 'completado') THEN TRUE
+			WHEN b.status IN ('pendiente_pago', 'confirmado', 'completado', 'reprogramado') THEN TRUE
 			ELSE FALSE 
 		END AS is_booked
 	`).
@@ -77,12 +75,12 @@ func (r *GormSlotRepository) ListByDateRange(ctx context.Context, barber_id uint
 	}
 
 	// 3. Cachear nueva informacion
-	slotToByte, err := json.Marshal(slotList)
-	if err != nil {
-		log.Println("Error realizando cache de los productos")
-	}
+	// slotToByte, err := json.Marshal(slotList)
+	// if err != nil {
+	// 	log.Println("Error realizando cache de los productos")
+	// }
 
-	r.redis.Set(ctx, cacheKey, slotToByte, 1*time.Minute)
+	// r.redis.Set(ctx, cacheKey, slotToByte, 1*time.Minute)
 
 	return slotList, nil
 }

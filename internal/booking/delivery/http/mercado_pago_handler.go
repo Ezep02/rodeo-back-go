@@ -8,10 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 
-	"github.com/ezep02/rodeo/internal/booking/domain/booking"
-	"github.com/ezep02/rodeo/internal/booking/domain/payments"
 	"github.com/ezep02/rodeo/internal/booking/usecases"
 	"github.com/ezep02/rodeo/pkg/jwt"
 	"github.com/gin-gonic/gin"
@@ -25,18 +22,16 @@ type MepaHandler struct {
 	paymentSvc  *usecases.PaymentService
 	couponSvc   *usecases.CouponService
 	servicesSvc *usecases.ServicesService
+	mepSvc      *usecases.MepService
 }
-
-var (
-	notification_url string = os.Getenv("NGROK_URL")
-)
 
 func NewMepaHandler(
 	bookingSvc *usecases.BookingService,
 	paymentSvc *usecases.PaymentService,
 	couponSvc *usecases.CouponService,
-	servicesSvc *usecases.ServicesService) *MepaHandler {
-	return &MepaHandler{bookingSvc, paymentSvc, couponSvc, servicesSvc}
+	servicesSvc *usecases.ServicesService,
+	mepSvc *usecases.MepService) *MepaHandler {
+	return &MepaHandler{bookingSvc, paymentSvc, couponSvc, servicesSvc, mepSvc}
 }
 
 type CreatePreferenceRequest struct {
@@ -48,9 +43,10 @@ type CreatePreferenceRequest struct {
 
 func (h *MepaHandler) CreatePreference(c *gin.Context) {
 	var (
-		req             CreatePreferenceRequest
-		MP_ACCESS_TOKEN = os.Getenv("MP_ACCESS_TOKEN")
-		AUTH_TOKEN      = os.Getenv("AUTH_TOKEN")
+		req              CreatePreferenceRequest
+		MP_ACCESS_TOKEN  = os.Getenv("MP_ACCESS_TOKEN")
+		AUTH_TOKEN       = os.Getenv("AUTH_TOKEN")
+		notification_url = os.Getenv("NGROK_URL")
 	)
 
 	if MP_ACCESS_TOKEN == "" {
@@ -60,6 +56,11 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 
 	if AUTH_TOKEN == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "falta auth token"})
+		return
+	}
+
+	if notification_url == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "falta url de notificacion"})
 		return
 	}
 
@@ -76,48 +77,16 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 		return
 	}
 
-	// 2. Crear booking
-	totalAmount, err := h.servicesSvc.GetTotalPriceByIDs(c.Request.Context(), req.ServicesID)
+	// Almacenar temporalmente los datos de la preferencia
+	booking, payment, totalAmount, err := h.mepSvc.CreateMpPreference(c.Request.Context(), usecases.MepaPreference{
+		SlotID:            req.SlotID,
+		ServicesID:        req.ServicesID,
+		PaymentPercentage: req.PaymentPercentage,
+		CouponCode:        req.CouponCode,
+	}, authenticatedUser.ID)
+
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "no fue posible recuperar los servicios"})
-		return
-	}
-
-	// 3. Crear booking
-	booking := &booking.Booking{
-		SlotID:      req.SlotID,
-		ClientID:    authenticatedUser.ID,
-		Status:      "pendiente_pago",
-		TotalAmount: totalAmount,
-		ExpiresAt: func() *time.Time {
-			t := time.Now().Add(5 * time.Minute)
-			return &t
-		}(),
-	}
-
-	if err := h.bookingSvc.CreateBooking(c, booking); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear reserva"})
-		return
-	}
-
-	// 3. Crear payment (seña o total)
-	paymentAmount := totalAmount
-	paymentType := "total"
-	if req.PaymentPercentage < 100 {
-		paymentAmount = paymentAmount * float64(req.PaymentPercentage) / 100
-		paymentType = "parcial"
-	}
-
-	payment := &payments.Payment{
-		BookingID: booking.ID,
-		Amount:    paymentAmount,
-		Type:      paymentType,
-		Method:    "mercadopago",
-		Status:    "pendiente",
-	}
-
-	if err := h.paymentSvc.CreatePayment(c, payment); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear pago"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -134,7 +103,7 @@ func (h *MepaHandler) CreatePreference(c *gin.Context) {
 			{
 				Title:     "Tus servicios",
 				UnitPrice: totalAmount,
-				Quantity:  1,
+				Quantity:  int(len(req.ServicesID)),
 			},
 		},
 		Payer: &preference.PayerRequest{
@@ -177,6 +146,8 @@ func (h *MepaHandler) HandleNotification(c *gin.Context) {
 		payload         map[string]any
 		MP_ACCESS_TOKEN = os.Getenv("MP_ACCESS_TOKEN")
 	)
+
+	log.Println("[MP Payment is here]")
 
 	// 2. Decodificar payload enviado por mp
 	if err := json.NewDecoder(c.Request.Body).Decode(&payload); err != nil {
@@ -287,13 +258,18 @@ func (h *MepaHandler) RescheduleWithSurcharge(c *gin.Context) {
 	bookingID := uint(paymentInfo.Metadata["booking_id"].(float64))
 	slotID := uint(paymentInfo.Metadata["slot_id"].(float64))
 
+	log.Println("[RESCHEDULE SLOT ID]", slotID)
+	log.Println("[RESCHEDULE BOOKINGS ID]", bookingID)
+
 	// Actualizar en base
 	if paymentInfo.Status == "approved" {
 
 		go func(bookingID, slotID uint) {
 			ctx := context.Background()
 			// 1. Realizar reprogramacion
-			h.bookingSvc.RescheduleWithSurcharge(ctx, bookingID, slotID)
+			if err := h.bookingSvc.RescheduleWithSurcharge(ctx, bookingID, slotID); err != nil {
+				log.Println("[RESCHEDULE WITH SURCHARGE ERR]", err)
+			}
 
 		}(bookingID, slotID)
 	}

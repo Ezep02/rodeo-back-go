@@ -38,6 +38,9 @@ func NewAppointmentRoutes(r *gin.RouterGroup, cnn *gorm.DB, redis *redis.Client)
 	svcRepo := repository.NewGormServiceRepo(cnn, redis)
 	serviceSvc := usecases.NewServicesService(svcRepo)
 
+	// Repositorio y casos de usos de Mep
+	mepSvc := usecases.NewMepService(bookingRepo, paymentRepo, svcRepo)
+
 	// Job para cancelar las reservas que no fueron pagados aun
 	bookingRepo.StartBookingCleanupJob(15 * time.Minute)
 
@@ -66,7 +69,6 @@ func NewAppointmentRoutes(r *gin.RouterGroup, cnn *gorm.DB, redis *redis.Client)
 
 		// Obtener payment de una reserva
 		booking.GET("/payment/:id", bookingHandler.BookingPayment)
-
 	}
 
 	// Rutas de cupones
@@ -74,7 +76,7 @@ func NewAppointmentRoutes(r *gin.RouterGroup, cnn *gorm.DB, redis *redis.Client)
 	// Mercado Pago
 	mercado_pago := r.Group("/mercado_pago")
 	{
-		mepHandler := http.NewMepaHandler(bookingSvc, paymentSvc, couponSvc, serviceSvc)
+		mepHandler := http.NewMepaHandler(bookingSvc, paymentSvc, couponSvc, serviceSvc, mepSvc)
 		mercado_pago.POST("/", mepHandler.CreatePreference)
 		mercado_pago.POST("/notification", mepHandler.HandleNotification)
 		mercado_pago.POST("/notification/reschedule", mepHandler.RescheduleWithSurcharge)

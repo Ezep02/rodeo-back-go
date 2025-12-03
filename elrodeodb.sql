@@ -202,10 +202,6 @@ CREATE TABLE booking_services (
     booking_id BIGINT UNSIGNED NOT NULL,
     service_id BIGINT UNSIGNED NOT NULL,
     
-    price DECIMAL(10,2) NOT NULL,   -- precio al momento de la reserva
-    quantity INT DEFAULT 1,         -- unidades o cantidad de servicios
-    notes VARCHAR(255) DEFAULT NULL, -- opcional: observaciones específicas del servicio
-
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
